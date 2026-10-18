@@ -1,0 +1,14 @@
+{
+  "name": "bankease-ai",
+  "private": true,
+  "description": "Convenience npm scripts; no npm dependencies needed (backend serves the frontend).",
+  "scripts": {
+    "dev:all": "python3 scripts/dev.py",
+    "dev": "python3 scripts/dev.py",
+    "start": "python3 scripts/dev.py --no-reload",
+    "check": "python3 scripts/preflight.py",
+    "install:py": "python3 -m pip install -r requirements.txt",
+    "data": "python3 scripts/make_datasets.py",
+    "test": "python3 scripts/preflight.py --skip-port && python3 -m pytest backend/tests -q"
+  }
+}

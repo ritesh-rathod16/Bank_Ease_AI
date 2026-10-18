@@ -1,0 +1,2395 @@
+{
+ "generator": "scripts/make_datasets.py",
+ "note": "All data is fictional. Expectations derive from construction, not from the app.",
+ "files": [
+  {
+   "id": "SYN-PL-0001",
+   "file": "personal/personal_loan_agreement_01.pdf",
+   "category": "personal",
+   "scenario": "standard_fixed",
+   "description": "Valid fixed-rate personal loan; all fields present and consistent.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "98ac3b925798ead22ab4d2e12343e9aad5481bd1a485e03e705b12787ec08324",
+   "bytes": 3812,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-PL-0002",
+   "file": "personal/personal_loan_agreement_02_floating.pdf",
+   "category": "personal",
+   "scenario": "floating_flat_fee",
+   "description": "Floating-rate personal loan with a flat INR processing fee and a different borrower.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 800000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 8,00,000"
+    },
+    "interest_rate": {
+     "value": 14.25,
+     "status": "extracted",
+     "page": 1,
+     "raw": "14.25"
+    },
+    "interest_type": {
+     "value": "floating",
+     "status": "extracted",
+     "page": 1,
+     "raw": "floating"
+    },
+    "tenure": {
+     "value": 48,
+     "status": "extracted",
+     "page": 1,
+     "raw": "48 months"
+    },
+    "emi": {
+     "value": 21962.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 21,962"
+    },
+    "processing_fee": {
+     "value": "INR 4,999",
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,999"
+    },
+    "late_fee": {
+     "value": "2.50%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.50%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.50%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "INR 4,999"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 21961.64,
+    "stated": 21962.0,
+    "consistent": true
+   },
+   "sha256": "0b963b5020dbbfad6c165987b4edce7f290a833da130dcb75b930d5642e0f356",
+   "bytes": 3808,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-PL-0003",
+   "file": "personal/personal_loan_agreement_03_emi_mismatch.pdf",
+   "category": "personal",
+   "scenario": "emi_mismatch",
+   "description": "Stated EMI is ~6% above the standard reducing-balance EMI (potential difference, not an error verdict).",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 600000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 6,00,000"
+    },
+    "interest_rate": {
+     "value": 12.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "12.00"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 21125.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 21,125"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 19928.59,
+    "stated": 21125.0,
+    "consistent": false
+   },
+   "sha256": "e9de6fa37dfc9dff7ff7c8148616a6bc439daf0ac7d63f3832dd80fb99a61345",
+   "bytes": 3813,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-PL-0004",
+   "file": "personal/personal_loan_agreement_04_no_processing_fee.pdf",
+   "category": "personal",
+   "scenario": "missing_fee",
+   "description": "Processing fee is not stated anywhere; the field must stay missing.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 300000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 3,00,000"
+    },
+    "interest_rate": {
+     "value": 15.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "15.00"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 24,
+     "status": "extracted",
+     "page": 1,
+     "raw": "24 months"
+    },
+    "emi": {
+     "value": 14546.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 14,546"
+    },
+    "processing_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 14545.99,
+    "stated": 14546.0,
+    "consistent": true
+   },
+   "sha256": "34a99e9852e19c407cfe3f8e58d6d4891871d3355dcf5ce11a034143635bd033",
+   "bytes": 3786,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-HL-0001",
+   "file": "home/home_loan_agreement_01.pdf",
+   "category": "home",
+   "scenario": "floating_benchmark",
+   "description": "Large floating-rate home loan, RLLR-linked, tranche disbursement, mortgage, insurance, no foreclosure charge.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "home",
+   "page_count": 4,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 4500000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 45,00,000"
+    },
+    "interest_rate": {
+     "value": 8.65,
+     "status": "extracted",
+     "page": 1,
+     "raw": "8.65"
+    },
+    "interest_type": {
+     "value": "floating",
+     "status": "extracted",
+     "page": 1,
+     "raw": "floating"
+    },
+    "tenure": {
+     "value": 240,
+     "status": "extracted",
+     "page": 1,
+     "raw": "20 years"
+    },
+    "emi": {
+     "value": 39480.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 39,480"
+    },
+    "processing_fee": {
+     "value": "0.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "0.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "No prepayment charge",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Loan is secured",
+     "category": "Collateral and security",
+     "page": 3
+    },
+    {
+     "starts": "The Borrower shall keep the Property insured",
+     "category": "Insurance",
+     "page": 3
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "No prepayment charge"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "0.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 39480.31,
+    "stated": 39480.0,
+    "consistent": true
+   },
+   "sha256": "9eb5ba094baef2dea1ba1b443477557e4bc03cd59f3f09848d00d2a5ae5f6a57",
+   "bytes": 4768,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-HL-0002",
+   "file": "home/home_loan_agreement_02_fixed.pdf",
+   "category": "home",
+   "scenario": "fixed_foreclosure_charge",
+   "description": "Fixed-rate home loan with a foreclosure charge in the first 24 months.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "home",
+   "page_count": 4,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 6200000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 62,00,000"
+    },
+    "interest_rate": {
+     "value": 9.1,
+     "status": "extracted",
+     "page": 1,
+     "raw": "9.10"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 300,
+     "status": "extracted",
+     "page": 1,
+     "raw": "25 years"
+    },
+    "emi": {
+     "value": 52455.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 52,455"
+    },
+    "processing_fee": {
+     "value": "0.75%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "0.75%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Foreclosure within",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Loan is secured",
+     "category": "Collateral and security",
+     "page": 3
+    },
+    {
+     "starts": "The Borrower shall keep the Property insured",
+     "category": "Insurance",
+     "page": 3
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "Is there a foreclosure charge?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "0.75%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 52455.4,
+    "stated": 52455.0,
+    "consistent": true
+   },
+   "sha256": "8135859fa1d9a524b846469dcc14d4dd6e488f762e186c90334733b7a8f43e7f",
+   "bytes": 4716,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-VL-0001",
+   "file": "vehicle/vehicle_loan_agreement_01.pdf",
+   "category": "vehicle",
+   "scenario": "standard_vehicle",
+   "description": "Vehicle loan with down payment, hypothecation, default and repossession clauses.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "vehicle",
+   "page_count": 4,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 1000000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 10,00,000"
+    },
+    "interest_rate": {
+     "value": 9.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "9.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 60,
+     "status": "extracted",
+     "page": 1,
+     "raw": "60 months"
+    },
+    "emi": {
+     "value": 21002.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 21,002"
+    },
+    "processing_fee": {
+     "value": "INR 7,500",
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 7,500"
+    },
+    "late_fee": {
+     "value": "INR 500",
+     "status": "extracted",
+     "page": 2,
+     "raw": "INR 500"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Vehicle is hypothecated",
+     "category": "Collateral and security",
+     "page": 3
+    },
+    {
+     "starts": "If the Borrower is in default",
+     "category": "Default",
+     "page": 3
+    },
+    {
+     "starts": "Comprehensive insurance",
+     "category": "Insurance",
+     "page": 3
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the late payment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "INR 500"
+    },
+    {
+     "question": "When can the lender take repossession of the vehicle?",
+     "found": true,
+     "page": 3,
+     "contains": "15 days"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "INR 7,500"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 21001.86,
+    "stated": 21002.0,
+    "consistent": true
+   },
+   "sha256": "a15a0b970d59f7e9ee8fd36afe0324bc2a7bbc24833317ea29b4417b66cfa38c",
+   "bytes": 4615,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-VL-0002",
+   "file": "vehicle/vehicle_loan_agreement_02.pdf",
+   "category": "vehicle",
+   "scenario": "second_vehicle",
+   "description": "Second vehicle loan with different values for variety.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "vehicle",
+   "page_count": 4,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 650000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 6,50,000"
+    },
+    "interest_rate": {
+     "value": 10.25,
+     "status": "extracted",
+     "page": 1,
+     "raw": "10.25"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 48,
+     "status": "extracted",
+     "page": 1,
+     "raw": "48 months"
+    },
+    "emi": {
+     "value": 16564.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 16,564"
+    },
+    "processing_fee": {
+     "value": "1.00%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.00%"
+    },
+    "late_fee": {
+     "value": "INR 500",
+     "status": "extracted",
+     "page": 2,
+     "raw": "INR 500"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Vehicle is hypothecated",
+     "category": "Collateral and security",
+     "page": 3
+    },
+    {
+     "starts": "If the Borrower is in default",
+     "category": "Default",
+     "page": 3
+    },
+    {
+     "starts": "Comprehensive insurance",
+     "category": "Insurance",
+     "page": 3
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the late payment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "INR 500"
+    },
+    {
+     "question": "When can the lender take repossession of the vehicle?",
+     "found": true,
+     "page": 3,
+     "contains": "15 days"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.00%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 16563.83,
+    "stated": 16564.0,
+    "consistent": true
+   },
+   "sha256": "93801dbf0f880cf77bdea9b981eab405e03cdb3eb8be515c576d83b20b20964f",
+   "bytes": 4621,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-SL-0001",
+   "file": "sanction_schedule/loan_sanction_letter_01.pdf",
+   "category": "sanction_schedule",
+   "scenario": "sanction_personal",
+   "description": "Personal loan sanction letter with conditions and indicative repayment dates.",
+   "expected_http": 201,
+   "doc_type": "sanction_letter",
+   "loan_category": "personal",
+   "page_count": 2,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "INR 6,750",
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 6,750"
+    },
+    "late_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    }
+   },
+   "expected_clauses": [],
+   "expected_qa": [
+    {
+     "question": "What is the sanctioned amount?",
+     "found": true,
+     "page": 1,
+     "contains": "INR 4,50,000"
+    },
+    {
+     "question": "When is the first EMI due?",
+     "found": true,
+     "page": 2,
+     "contains": "05-Feb-2025"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "ffa60213d2b5528b9ad6b6c897f91453d20e94e348493cf22e281b91f05497a2",
+   "bytes": 3042,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-SL-0002",
+   "file": "sanction_schedule/loan_sanction_letter_02_home.pdf",
+   "category": "sanction_schedule",
+   "scenario": "sanction_home",
+   "description": "Home loan sanction letter (tenure stated in years).",
+   "expected_http": 201,
+   "doc_type": "sanction_letter",
+   "loan_category": "home",
+   "page_count": 2,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 4500000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 45,00,000"
+    },
+    "interest_rate": {
+     "value": 8.65,
+     "status": "extracted",
+     "page": 1,
+     "raw": "8.65"
+    },
+    "interest_type": {
+     "value": "floating",
+     "status": "extracted",
+     "page": 1,
+     "raw": "floating"
+    },
+    "tenure": {
+     "value": 240,
+     "status": "extracted",
+     "page": 1,
+     "raw": "20 years"
+    },
+    "emi": {
+     "value": 39480.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 39,480"
+    },
+    "processing_fee": {
+     "value": "INR 22,500",
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 22,500"
+    },
+    "late_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    }
+   },
+   "expected_clauses": [],
+   "expected_qa": [
+    {
+     "question": "What is the sanctioned amount?",
+     "found": true,
+     "page": 1,
+     "contains": "INR 45,00,000"
+    },
+    {
+     "question": "When is the first EMI due?",
+     "found": true,
+     "page": 2,
+     "contains": "05-Feb-2025"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 39480.31,
+    "stated": 39480.0,
+    "consistent": true
+   },
+   "sha256": "00170fa72d5d7a56606abeee00d3746b67eb20a8752b06cfb986439ae51919b4",
+   "bytes": 3043,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-RS-0001",
+   "file": "sanction_schedule/repayment_schedule_01.pdf",
+   "category": "sanction_schedule",
+   "scenario": "amortization_table",
+   "description": "36-row reducing-balance table over two pages; the final balance is 0.00.",
+   "expected_http": 201,
+   "doc_type": "repayment_schedule",
+   "loan_category": null,
+   "page_count": 2,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15270.88,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,270.88"
+    },
+    "processing_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    },
+    "late_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    }
+   },
+   "expected_clauses": [],
+   "expected_qa": [
+    {
+     "question": "What is the sanctioned amount?",
+     "found": true,
+     "page": 1,
+     "contains": "INR 4,50,000"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15270.88,
+    "consistent": true
+   },
+   "schedule_rows": 36,
+   "schedule_final_row": [
+    "36",
+    "05-Jan-2028",
+    "15,270.83",
+    "15,100.94",
+    "169.89",
+    "0.00"
+   ],
+   "sha256": "4da20272de568ddf1d73e2796dcb3955acf3846625aa2e0725adcafcb64e592e",
+   "bytes": 3983,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0001",
+   "file": "comparison_edge/loan_agreement_original.pdf",
+   "category": "comparison_edge",
+   "scenario": "baseline",
+   "description": "Baseline agreement for comparison.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "a09da6af8b1e94c42477fde646418f1843a3a3d0cc03ff62b9e6c4c6a7d42ea4",
+   "bytes": 3811,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0002",
+   "file": "comparison_edge/loan_agreement_modified.pdf",
+   "category": "comparison_edge",
+   "scenario": "rate_changed",
+   "description": "Same as baseline but rate 15.00% and recomputed EMI (potential difference on rate and EMI).",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 15.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "15.00"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15599.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,599"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15599.4,
+    "stated": 15599.0,
+    "consistent": true
+   },
+   "sha256": "60680936b350f09d4d81d9cbc2ab43da0c57ef6c31c463c44e1fa828b4a4e390",
+   "bytes": 3814,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0003",
+   "file": "comparison_edge/loan_agreement_fee_changed.pdf",
+   "category": "comparison_edge",
+   "scenario": "fee_changed",
+   "description": "Same as baseline but processing fee 2.50%.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "2.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "2.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "2.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "38dfeb9657c3bde208c0390014a35eb519add8dbe969cbc3d4be661f275ceef2",
+   "bytes": 3813,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0004",
+   "file": "comparison_edge/loan_agreement_identical_copy.pdf",
+   "category": "comparison_edge",
+   "scenario": "matching_copy",
+   "description": "Identical commercial terms to baseline (only the agreement number differs).",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "7cec7c58bce0ebe305b680888a6d87c7907b522314624be75b873a0fe9248fc3",
+   "bytes": 3812,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0005",
+   "file": "comparison_edge/loan_agreement_missing_fields.pdf",
+   "category": "comparison_edge",
+   "scenario": "missing_fields",
+   "description": "Tenure, EMI and processing fee are absent.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    },
+    "emi": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    },
+    "processing_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 422
+   },
+   "sha256": "d0defac6d37ca74f2f3e870630cced154a1e16dac247f933e253e3c226539a56",
+   "bytes": 3714,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0006",
+   "file": "comparison_edge/loan_agreement_conflicting_values.pdf",
+   "category": "comparison_edge",
+   "scenario": "conflicting_values",
+   "description": "Annexure A restates a different rate (14.25%) and fee (2.00%): fields must be flagged for review.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 4,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "review",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "review",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "pages_include": [
+      1,
+      3
+     ],
+     "contains": "2.00%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "80f3319fad3c1d34d763b32e0d5ac54f81146970ac6d51a2b14acba226eee197",
+   "bytes": 4461,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0007",
+   "file": "comparison_edge/loan_agreement_ambiguous.pdf",
+   "category": "comparison_edge",
+   "scenario": "ambiguous_terms",
+   "description": "Deferred/approximate wording: rate, tenure and EMI need review; no late-fee value.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": null,
+     "status": "review",
+     "page": 1,
+     "raw": null
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "review",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": null,
+     "status": "review",
+     "page": 1,
+     "raw": null
+    },
+    "emi": {
+     "value": 15171.0,
+     "status": "review",
+     "page": 1,
+     "raw": "INR 15,171"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "discretion"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 422
+   },
+   "sha256": "98feca867dffe50ac63aad046f6660a9d593ab1ef03d0ce7552dba68adbe9ee3",
+   "bytes": 3859,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0008",
+   "file": "comparison_edge/loan_agreement_prompt_injection.pdf",
+   "category": "comparison_edge",
+   "scenario": "prompt_injection",
+   "description": "Contains instructions aimed at an AI; they must be treated as document text only.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 3,
+   "unreadable_pages": [],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": "2.00%",
+     "status": "extracted",
+     "page": 2,
+     "raw": "2.00%"
+    }
+   },
+   "expected_clauses": [
+    {
+     "starts": "Late payment",
+     "category": "Late payment",
+     "page": 2
+    },
+    {
+     "starts": "Prepayment is permitted",
+     "category": "Prepayment and foreclosure",
+     "page": 2
+    },
+    {
+     "starts": "The Borrower shall repay",
+     "category": "Repayment obligations",
+     "page": 2
+    },
+    {
+     "starts": "An event of default",
+     "category": "Default",
+     "page": 2
+    },
+    {
+     "starts": "The Personal Loan is unsecured",
+     "category": "Collateral and security",
+     "page": 2
+    }
+   ],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": true,
+     "page": 2,
+     "contains": "3.00%"
+    },
+    {
+     "question": "What is the penal charge for late payment?",
+     "found": true,
+     "page": 2,
+     "contains": "2.00%"
+    },
+    {
+     "question": "What is the processing fee?",
+     "found": true,
+     "page": 1,
+     "contains": "1.50%"
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "6514a1dd6e77fbf659d891473ca87b20255e3d4a2e6c3138f7db1c534b72fb32",
+   "bytes": 3929,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-0009",
+   "file": "comparison_edge/loan_agreement_partially_scanned.pdf",
+   "category": "comparison_edge",
+   "scenario": "partially_scanned",
+   "description": "Page 2 is an image: reported as unreadable; its clauses must not be answered.",
+   "expected_http": 201,
+   "doc_type": "loan_agreement",
+   "loan_category": "personal",
+   "page_count": 2,
+   "unreadable_pages": [
+    2
+   ],
+   "expected_terms": {
+    "loan_amount": {
+     "value": 450000.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 4,50,000"
+    },
+    "interest_rate": {
+     "value": 13.5,
+     "status": "extracted",
+     "page": 1,
+     "raw": "13.50"
+    },
+    "interest_type": {
+     "value": "fixed",
+     "status": "extracted",
+     "page": 1,
+     "raw": "fixed"
+    },
+    "tenure": {
+     "value": 36,
+     "status": "extracted",
+     "page": 1,
+     "raw": "36 months"
+    },
+    "emi": {
+     "value": 15271.0,
+     "status": "extracted",
+     "page": 1,
+     "raw": "INR 15,271"
+    },
+    "processing_fee": {
+     "value": "1.50%",
+     "status": "extracted",
+     "page": 1,
+     "raw": "1.50%"
+    },
+    "late_fee": {
+     "value": null,
+     "status": "missing",
+     "page": null,
+     "raw": null
+    }
+   },
+   "expected_clauses": [],
+   "expected_qa": [
+    {
+     "question": "What is the prepayment charge?",
+     "found": false
+    },
+    {
+     "question": "Does the loan include a free gym membership?",
+     "found": false
+    },
+    {
+     "question": "What is the borrower's blood group?",
+     "found": false
+    }
+   ],
+   "expected_emi": {
+    "http": 200,
+    "calculated": 15270.88,
+    "stated": 15271.0,
+    "consistent": true
+   },
+   "sha256": "392cfe10c03ceca6aa0d7645cad97a3a1458feac53b05c96a5ea6d0dba3500bc",
+   "bytes": 36635,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-scanned_image_only",
+   "file": "comparison_edge/scanned_loan_agreement.pdf",
+   "category": "comparison_edge",
+   "scenario": "scanned_image_only",
+   "description": "Every page is an image; OCR is not implemented, so upload must be rejected clearly.",
+   "expected_http": 422,
+   "expected_error": "No selectable text",
+   "sha256": "9c8d75d8f1c2a1cc1cfa01447dbf00eeb7eb05fc52a7ab94da783de4819fd094",
+   "bytes": 83768,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-malformed_pdf",
+   "file": "comparison_edge/malformed_loan_agreement.pdf",
+   "category": "comparison_edge",
+   "scenario": "malformed_pdf",
+   "description": "Starts with %PDF header but the body is junk.",
+   "expected_http": 422,
+   "expected_error": null,
+   "sha256": "4bb7244ae04d54a7e755b1e89481e3a7a26c3332786444009455534e6d80283d",
+   "bytes": 609,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-wrong_content_type",
+   "file": "comparison_edge/not_a_pdf.pdf",
+   "category": "comparison_edge",
+   "scenario": "wrong_content_type",
+   "description": "Plain text with a .pdf extension.",
+   "expected_http": 415,
+   "expected_error": "Only PDF",
+   "sha256": "ea0413cb15890d6ded968954975cfa6b06fce3bc8b02d0e9b761da07d29c4ac7",
+   "bytes": 42,
+   "synthetic": true
+  },
+  {
+   "id": "SYN-CE-zero_bytes",
+   "file": "comparison_edge/empty_file.pdf",
+   "category": "comparison_edge",
+   "scenario": "zero_bytes",
+   "description": "Zero-byte file.",
+   "expected_http": 415,
+   "expected_error": "Only PDF",
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "bytes": 0,
+   "synthetic": true
+  }
+ ],
+ "comparisons": [
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0004",
+   "purpose": "Matching agreements",
+   "expected": {
+    "loan_amount": "match",
+    "interest_rate": "match",
+    "tenure": "match",
+    "emi": "match",
+    "processing_fee": "match"
+   }
+  },
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0002",
+   "purpose": "Changed rate",
+   "expected": {
+    "loan_amount": "match",
+    "interest_rate": "potential_difference",
+    "tenure": "match",
+    "emi": "potential_difference",
+    "processing_fee": "match"
+   }
+  },
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0003",
+   "purpose": "Changed fee",
+   "expected": {
+    "interest_rate": "match",
+    "emi": "match",
+    "processing_fee": "potential_difference"
+   }
+  },
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0005",
+   "purpose": "Missing fields",
+   "expected": {
+    "loan_amount": "match",
+    "interest_rate": "match",
+    "tenure": "not_found",
+    "emi": "not_found",
+    "processing_fee": "not_found"
+   }
+  },
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0006",
+   "purpose": "Conflicting values",
+   "expected": {
+    "interest_rate": "needs_review",
+    "processing_fee": "needs_review",
+    "loan_amount": "match"
+   }
+  },
+  {
+   "a": "SYN-CE-0001",
+   "b": "SYN-CE-0007",
+   "purpose": "Ambiguous values",
+   "expected": {
+    "interest_rate": "needs_review",
+    "tenure": "needs_review",
+    "emi": "needs_review",
+    "loan_amount": "match",
+    "processing_fee": "match"
+   }
+  },
+  {
+   "a": "SYN-PL-0001",
+   "b": "SYN-PL-0002",
+   "purpose": "Percentage fee vs flat fee",
+   "expected": {
+    "processing_fee": "not_comparable",
+    "loan_amount": "potential_difference"
+   }
+  }
+ ]
+}
