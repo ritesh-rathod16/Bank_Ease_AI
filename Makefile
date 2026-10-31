@@ -11,8 +11,9 @@ help:  ## Show commands
 venv:  ## Create .venv (then: . .venv/bin/activate && make install)
 	$(PYTHON) -m venv .venv
 
-install:  ## Install dependencies from requirements.txt
+install:  ## Install Python and Next.js frontend dependencies
 	$(PYTHON) -m pip install -r requirements.txt
+	npm install
 
 check:  ## Verify Python, dependencies, files, dataset, port
 	$(PYTHON) scripts/preflight.py --port $(PORT)
@@ -20,10 +21,10 @@ check:  ## Verify Python, dependencies, files, dataset, port
 data:  ## (Re)generate synthetic dataset + manifests
 	$(PYTHON) scripts/make_datasets.py
 
-dev:  ## Preflight, then run backend + frontend together (auto-reload) on PORT (default 8000)
-	$(PYTHON) scripts/dev.py --port $(PORT)
+dev:  ## Run the FastAPI API and Next.js frontend together
+	npm run dev:all
 
-start:  ## Same as dev but without auto-reload
+start:  ## Run only the FastAPI backend without auto-reload
 	$(PYTHON) scripts/dev.py --port $(PORT) --no-reload
 
 test:  ## Run the full test suite

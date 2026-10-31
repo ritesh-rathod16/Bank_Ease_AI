@@ -1,0 +1,7 @@
+# Optional, isolated research stack used by scripts/train_document_classifier.py.
+# The core API does not import these packages.
+torch==2.14.1
+transformers==5.20.2
+peft==0.21.2
+huggingface-hub==2.2.0
+psutil==7.2.2

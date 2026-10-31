@@ -1,14 +1,45 @@
 {
   "name": "bankease-ai",
+  "version": "0.2.0",
   "private": true,
-  "description": "Convenience npm scripts; no npm dependencies needed (backend serves the frontend).",
   "scripts": {
-    "dev:all": "python3 scripts/dev.py",
-    "dev": "python3 scripts/dev.py",
-    "start": "python3 scripts/dev.py --no-reload",
-    "check": "python3 scripts/preflight.py",
-    "install:py": "python3 -m pip install -r requirements.txt",
-    "data": "python3 scripts/make_datasets.py",
-    "test": "python3 scripts/preflight.py --skip-port && python3 -m pytest backend/tests -q"
+    "dev": "next dev frontend --port 3000",
+    "build": "next build frontend",
+    "start": "next start frontend --port 3000",
+    "lint": "eslint frontend/src",
+    "typecheck": "tsc --noEmit -p frontend/tsconfig.json",
+    "dev:api": "python scripts/dev.py",
+    "dev:all": "concurrently --kill-others-on-fail -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev\"",
+    "install:py": "python -m pip install -r requirements.txt",
+    "check": "python scripts/preflight.py",
+    "test": "python scripts/preflight.py --skip-port && python -m pytest backend/tests -q",
+    "data": "python scripts/make_datasets.py"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "5.9.2",
+    "@tanstack/react-query": "5.104.4",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.59.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "7.90.0",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.7.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "concurrently": "10.0.6",
+    "eslint": "10.13.0",
+    "eslint-config-next": "16.4.2",
+    "postcss": "8.5.31",
+    "shadcn": "4.22.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
   }
 }

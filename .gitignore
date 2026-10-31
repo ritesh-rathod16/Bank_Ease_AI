@@ -1,7 +1,12 @@
 data/runtime/
+data/ml/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
 venv/
 .env
+node_modules/
+frontend/.next/
+*.tsbuildinfo
+.vscode/

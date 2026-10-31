@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "base_models": [
+    {
+      "name": "qwen3:4b-instruct",
+      "provider": "ollama",
+      "task": "conversation",
+      "format": "ollama-managed-gguf",
+      "license": "Apache-2.0",
+      "size_note": "Q4_K_M published size is approximately 2.5 GB; runtime memory is higher.",
+      "evaluation_status": "candidate_not_evaluated_on_this_machine"
+    }
+  ],
+  "models": [
+    {
+      "name": "bankease-gpt2-document-classifier-synthetic-lora-v1",
+      "base_model": "gpt2@607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "version": "1",
+      "task": "document_classification",
+      "provider": "transformers",
+      "artifact_path": "data/runtime/ml/gpt2-classifier-v1/model-best",
+      "format": "peft-lora-sequence-classification",
+      "license": "See the base model and adapter licenses before reuse or redistribution.",
+      "evaluation_status": "experimental_not_production_ready",
+      "chat_selectable": false,
+      "notes": "Synthetic-only document classification adapter. Do not use for conversation, customer decisions, or real-document claims."
+    }
+  ]
+}

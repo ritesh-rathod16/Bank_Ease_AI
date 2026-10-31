@@ -1,10 +1,11 @@
 """Manifest-driven end-to-end tests over the synthetic dataset (expectations come from scripts/make_datasets.py)."""
 import hashlib, json, os, pathlib, sys, time
+from datetime import datetime, timezone
 import pymupdf, pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 from fastapi.testclient import TestClient
-from backend.app import main, store
+from backend.app import auth, main, ocr, store
 SAMPLES = ROOT / "data" / "samples"
 MAN = json.loads((SAMPLES / "manifest.json").read_text())
 FILES = MAN["files"]
@@ -15,7 +16,16 @@ FIELDS = ["loan_amount", "interest_rate", "interest_type", "tenure", "emi", "pro
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "ROOT", tmp_path / "rt")
-    return TestClient(main.app)
+    monkeypatch.setenv("APP_ENV", "test")
+    # Keep the synthetic baseline independent of whether CI has system Tesseract installed.
+    monkeypatch.setattr(ocr, "extract_pages", lambda _pdf, _indexes: {})
+    old = dict(main.app.dependency_overrides)
+    main.app.dependency_overrides[auth.get_current_user] = lambda: {"id": "dataset-owner", "name": "Dataset", "email": "dataset@example.test", "email_verified": True}
+    main.app.dependency_overrides[auth.require_csrf] = lambda: None
+    with TestClient(main.app) as test_client:
+        yield test_client
+    main.app.dependency_overrides.clear()
+    main.app.dependency_overrides.update(old)
 
 def up(client, rel):
     p = SAMPLES / rel
@@ -73,10 +83,77 @@ def test_upload_size_limit(client, monkeypatch):
     monkeypatch.setattr(main, "MAX_BYTES", 1000)
     assert up(client, "personal/personal_loan_agreement_01.pdf").status_code == 413
 
-def test_raw_pdf_is_never_written_to_disk(client):
-    up(client, "personal/personal_loan_agreement_01.pdf")
-    assert not list((store.ROOT / "uploads").glob("*")) if (store.ROOT / "uploads").exists() else True
-    rec = next((store.ROOT / "records").glob("*.json")); assert oct(rec.stat().st_mode & 0o777) == "0o600"
+def test_original_pdf_is_stored_privately_and_previewed_through_owner_api(client):
+    uploaded = up(client, "personal/personal_loan_agreement_01.pdf")
+    assert uploaded.status_code == 201
+    document_id = uploaded.json()["id"]
+    source = store.ROOT / "uploads" / f"{document_id}.pdf"
+    assert source.is_file()
+    assert source.read_bytes().startswith(b"%PDF")
+    document = client.get(f"/documents/{document_id}").json()
+    assert document["source_available"] is True
+    assert "source_file" not in document
+    preview = client.get(f"/api/v1/documents/{document_id}/preview")
+    assert preview.status_code == 200 and preview.content.startswith(b"%PDF")
+    assert preview.headers["content-type"].startswith("application/pdf")
+    assert preview.headers["cache-control"] == "private, no-store"
+    assert preview.headers["x-content-type-options"] == "nosniff"
+    if os.name != "nt":
+        backup = source.with_suffix(".backup")
+        outside = source.parent.parent / "outside.pdf"
+        os.replace(source, backup)
+        outside.write_bytes(b"not a customer upload")
+        source.symlink_to(outside)
+        assert client.get(f"/api/v1/documents/{document_id}/preview").status_code == 404
+        source.unlink()
+        os.replace(backup, source)
+    rec = next((store.ROOT / "records").glob("*.json"))
+    if os.name != "nt":
+        assert oct(rec.stat().st_mode & 0o777) == "0o600"
+        assert oct(source.stat().st_mode & 0o777) == "0o600"
+
+def test_revision_history_links_owner_documents_and_supports_comparison(client):
+    first = SAMPLES / "personal" / "personal_loan_agreement_01.pdf"
+    revised = SAMPLES / "personal" / "personal_loan_agreement_02_floating.pdf"
+    original = up(client, "personal/personal_loan_agreement_01.pdf").json()
+    record_path = store.ROOT / "records" / f"{original['id']}.json"
+    legacy_record = json.loads(record_path.read_text())
+    for key in ("version_group_id", "version_number", "previous_version_id"):
+        legacy_record.pop(key, None)
+    record_path.write_text(json.dumps(legacy_record))
+    response = client.post(
+        "/api/v1/documents",
+        data={"supersedes_document_id": original["id"]},
+        files={"file": (revised.name, revised.read_bytes(), "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+    latest = response.json()
+    assert latest["version_group_id"] == original["id"]
+    assert latest["version_number"] == 2
+    assert latest["previous_version_id"] == original["id"]
+    history = client.get(f"/api/v1/documents/{latest['id']}/versions")
+    assert history.status_code == 200
+    assert [item["version_number"] for item in history.json()["versions"]] == [1, 2]
+    assert "source_file" not in history.text
+    compared = client.post("/api/v1/comparisons", json={
+        "document_id_a": original["id"], "document_id_b": latest["id"],
+    })
+    assert compared.status_code == 200
+    rows = {row["field"]: row for row in compared.json()["rows"]}
+    assert rows["interest_rate"]["status"] == "potential_difference"
+    home = SAMPLES / "home" / "home_loan_agreement_01.pdf"
+    incompatible = client.post(
+        "/api/v1/documents",
+        data={"supersedes_document_id": latest["id"]},
+        files={"file": (home.name, home.read_bytes(), "application/pdf")},
+    )
+    assert incompatible.status_code == 409
+    stale = client.post(
+        "/api/v1/documents",
+        data={"supersedes_document_id": original["id"]},
+        files={"file": (first.name, first.read_bytes(), "application/pdf")},
+    )
+    assert stale.status_code == 409
 
 # ---------- extraction + page citations ----------
 @pytest.mark.parametrize("f", OK, ids=ident)
@@ -165,15 +242,22 @@ def test_prompt_injection_is_inert(client):
 # ---------- deletion + persistence ----------
 def test_delete_removes_all_local_data(client):
     i = up(client, "home/home_loan_agreement_01.pdf").json()["id"]
+    source = store.ROOT / "uploads" / f"{i}.pdf"
+    assert source.is_file()
     assert client.delete(f"/documents/{i}").status_code == 204
     assert client.get(f"/documents/{i}").status_code == 404 and client.post(f"/documents/{i}/ask", json={"question": "interest rate?"}).status_code == 404
+    assert not source.exists()
     assert not list((store.ROOT / "records").glob("*")) and client.delete(f"/documents/{i}").status_code == 404
 
 def test_retention_purge_removes_only_expired(client):
     old = up(client, "personal/personal_loan_agreement_01.pdf").json()["id"]
-    p = store.ROOT / "records" / f"{old}.json"; t = time.time() - 48 * 3600; os.utime(p, (t, t))
+    p = store.ROOT / "records" / f"{old}.json"; t = time.time() - 48 * 3600
+    rec = json.loads(p.read_text()); rec["created_at"] = datetime.fromtimestamp(t, timezone.utc).isoformat()
+    p.write_text(json.dumps(rec)); os.utime(p, (t, t))
     new = up(client, "personal/personal_loan_agreement_02_floating.pdf").json()["id"]   # analyze() triggers purge (24h default)
     assert client.get(f"/documents/{old}").status_code == 404 and client.get(f"/documents/{new}").status_code == 200
+    assert not (store.ROOT / "uploads" / f"{old}.pdf").exists()
+    assert (store.ROOT / "uploads" / f"{new}.pdf").is_file()
     assert store.purge(0) == 0
 
 def test_path_traversal_ids_rejected(client):

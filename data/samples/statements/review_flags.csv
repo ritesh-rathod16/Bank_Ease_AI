@@ -1,0 +1,5 @@
+transaction_date,narration,debit,credit,running_balance,currency
+2026-01-01,Salary credit,,125000.00,125000.00,INR
+2026-01-02,Groceries,4250.00,,120750.00,INR
+2026-01-02,Groceries,4250.00,,116600.00,INR
+2026-01-03,Utilities,2000.00,,114600.00,INR

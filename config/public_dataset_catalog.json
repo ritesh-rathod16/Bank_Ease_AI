@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "datasets": [
+    {
+      "id": "finqa",
+      "name": "FinQA",
+      "source_url": "https://github.com/czyssrs/FinQA",
+      "card_url": "https://huggingface.co/datasets/ibm-research/finqa",
+      "license": "CC-BY-4.0 (dataset card); upstream code repository is MIT; underlying SEC filing text retains its own provenance and terms",
+      "language": ["en"],
+      "intended_tasks": ["financial question answering", "numerical reasoning", "evidence retrieval"],
+      "download_scope": ["train.json", "dev.json", "test.json"],
+      "excluded_files": ["private_test.json"],
+      "acquisition_status": "acquired_2026-10-29_prepared_research_only",
+      "limitations": ["English annual-report reasoning is not Indian retail-bank contract coverage", "Do not use as a live regulatory knowledge source", "Review source-report terms before redistribution"]
+    },
+    {
+      "id": "cuad",
+      "name": "Contract Understanding Atticus Dataset",
+      "source_url": "https://huggingface.co/datasets/theatticusproject/cuad-qa",
+      "license": "CC-BY-4.0 for dataset annotations; underlying contracts have separate rights and no blanket warranty",
+      "language": ["en"],
+      "intended_tasks": ["contract clause extraction", "contract question answering"],
+      "acquisition_status": "deferred_underlying_contract_rights_review",
+      "limitations": ["Commercial contracts are not bank-loan agreements", "Do not redistribute contract text without rights review"]
+    },
+    {
+      "id": "doclaynet",
+      "name": "DocLayNet",
+      "source_url": "https://huggingface.co/datasets/docling-project/DocLayNet",
+      "license": "CDLA-Permissive-1.0",
+      "language": ["en", "de", "ru", "other"],
+      "intended_tasks": ["document layout analysis", "page-region detection"],
+      "acquisition_status": "deferred_size_and_layout_task_review",
+      "limitations": ["Layout annotations do not provide financial understanding", "Inspect exact release and storage size before downloading"]
+    },
+    {
+      "id": "funsd",
+      "name": "FUNSD",
+      "source_url": "https://guillaumejaume.github.io/FUNSD/",
+      "license": "Not verified from the primary source for this workspace; do not download until terms are reviewed",
+      "language": ["en"],
+      "intended_tasks": ["noisy form understanding", "OCR/layout extraction"],
+      "acquisition_status": "blocked_pending_primary_license_verification",
+      "limitations": ["Form-understanding annotations are not bank-domain labels", "Third-party mirrors may declare different terms"]
+    },
+    {
+      "id": "rbi_official_references",
+      "name": "Reserve Bank of India official circulars and publications",
+      "source_url": "https://www.rbi.org.in/",
+      "license": "Review each publication's terms; use as versioned source material, not a bundled training corpus",
+      "language": ["en", "hi"],
+      "intended_tasks": ["current policy retrieval", "citation-backed answers"],
+      "acquisition_status": "live_retrieval_only_not_bulk_downloaded",
+      "limitations": ["Preserve circular date, source URL, version and retrieval date", "Never present stale documents as current"]
+    }
+  ]
+}

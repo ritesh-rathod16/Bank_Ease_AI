@@ -1,0 +1,6 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Terms and limitations" };
+export default function TermsPage() {
+  return <main className="mx-auto min-h-screen max-w-3xl px-5 py-12 sm:px-8"><Link className="text-xs text-teal hover:underline" href="/">← BankEase AI</Link><p className="mt-10 text-[10px] font-bold uppercase tracking-[.16em] text-teal">PRODUCT LIMITATIONS</p><h1 className="mt-3 text-3xl font-semibold">Use and limitations</h1><div className="mt-6 space-y-5 text-sm leading-7 text-muted"><p>BankEase AI is an educational document-analysis prototype. It extracts terms from selectable PDF text, returns matching passages, and calculates a reducing-balance repayment estimate.</p><p>Extraction can miss or misread terms. Calculations may not reflect lender-specific fees, day-count rules, insurance, or future rate changes. Check every important value against the original agreement and consult a qualified professional where needed.</p><p>The application does not give legal, financial, or investment advice, and does not decide whether an agreement or clause is legally valid. Do not rely on its output as the sole basis for a borrowing decision.</p></div><Link className="mt-8 inline-block text-xs text-teal hover:underline" href="/privacy">Read privacy information</Link></main>;
+}

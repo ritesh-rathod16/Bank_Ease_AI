@@ -3,6 +3,10 @@ KEYS = ["loan_amount", "interest_rate", "tenure", "emi", "processing_fee"]
 
 def _norm(k, f):
     if f["value"] is None: return None
+    if k == "processing_fee":
+        raw = str(f.get("raw") or f["value"])
+        n = re.search(r"[\d,]+(?:\.\d+)?", raw)
+        return (float(n.group().replace(",", "")), "%" in raw) if n else str(f["value"]).lower()
     if k == "tenure": k = "tenure_months"
     if isinstance(f["value"], (int, float)): return float(f["value"])
     n = re.search(r"[\d,]+(?:\.\d+)?", str(f["value"]))
@@ -15,9 +19,12 @@ def compare(a, b):
         va, vb = (_norm(k, fa) if fa else None), (_norm(k, fb) if fb else None)
         if va is None or vb is None: st = "needs_review" if "review" in (fa and fa["status"], fb and fb["status"]) else "not_found"
         elif "review" in (fa["status"], fb["status"]): st = "needs_review"
+        elif isinstance(va, tuple) != isinstance(vb, tuple): st = "not_comparable"
         elif isinstance(va, tuple) and va[1] != vb[1]: st = "not_comparable"
         else: st = "match" if va == vb else "potential_difference"
         rows.append({"field": k, "status": st,
-                     "a": {"value": fa and fa["raw"], "page": fa and fa["page"]},
-                     "b": {"value": fb and fb["raw"], "page": fb and fb["page"]}})
+                     "a": {"value": fa and fa["raw"], "page": fa and fa["page"], "evidence": fa and fa.get("evidence"),
+                           "manual": bool(fa and fa.get("status") == "manual"), "manual_source": fa and fa.get("manual_source")},
+                     "b": {"value": fb and fb["raw"], "page": fb and fb["page"], "evidence": fb and fb.get("evidence"),
+                           "manual": bool(fb and fb.get("status") == "manual"), "manual_source": fb and fb.get("manual_source")}})
     return rows
