@@ -106,6 +106,27 @@ def answer_sections(question, sections, k=2, min_cover=None, min_score=None):
 
 def answer_documents(question, documents, k=4, min_cover=None, min_score=None):
     """Retrieve supporting passages across an already-authorized document set."""
+    if any(phrase in question.lower() for phrase in [
+        "summarize", "summary", "plain english", "simple language", "explain this document",
+        "important terms", "what should i be careful about", "key terms", "what are the important terms"
+    ]):
+        summary_sources = []
+        for document in documents:
+            for page_number, page_text in enumerate(document.get("pages", [])[:12], 1):
+                for chunk in chunks([page_text])[:3]:
+                    summary_sources.append({
+                        "document_id": document["id"],
+                        "filename": document.get("filename") or "Document",
+                        "page": chunk.get("page"),
+                        "location": f"page {page_number}",
+                        "text": chunk["text"],
+                        "score": 1.0,
+                    })
+                    if len(summary_sources) >= 20:
+                        return {"found": True, "answer": "Document context loaded for summary generation.", "sources": summary_sources, "mode": "document-summary-context"}
+        if summary_sources:
+            return {"found": True, "answer": "Document context loaded for summary generation.", "sources": summary_sources, "mode": "document-summary-context"}
+
     min_cover = _threshold(min_cover, "AI_RETRIEVAL_MIN_COVER", 0.5, 0.0, 1.0)
     min_score = _threshold(min_score, "AI_RETRIEVAL_MIN_SCORE", 0.8, 0.0, 1000000.0)
     q = list(dict.fromkeys(toks(question)))

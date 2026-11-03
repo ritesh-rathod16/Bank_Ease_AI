@@ -1,4 +1,4 @@
-import copy, json, os, re, pathlib, time, threading, uuid
+import copy, hashlib, json, os, re, pathlib, time, threading, uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from bson.decimal128 import Decimal128
@@ -7,12 +7,13 @@ ID = re.compile(r"^[0-9a-f]{32}$")
 _MONGO_DB = None
 _WORKSPACE_OWNER = "local-workspace"
 _MONEY_FIELDS = {"loan_amount", "emi", "processing_fee", "late_fee", "sum_insured", "premium_amount"}
-_SOURCE_EXTENSIONS = {"pdf", "csv", "png", "jpg", "jpeg", "tif", "tiff", "xlsx", "docx"}
+_SOURCE_EXTENSIONS = {"pdf", "csv", "png", "jpg", "jpeg", "tif", "tiff", "xlsx", "docx", "txt", "jsonl", "jsondata"}
 _SOURCE_MEDIA_TYPES = {
     "pdf": "application/pdf", "csv": "text/csv", "png": "image/png",
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "tif": "image/tiff",
     "tiff": "image/tiff", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "txt": "text/plain; charset=utf-8", "jsonl": "application/x-ndjson", "jsondata": "application/json",
 }
 _RECORD_LOCK = threading.RLock()
 
@@ -240,6 +241,74 @@ def load(i, owner_id=_WORKSPACE_OWNER):
     if record.get("owner_id") != owner_id: raise KeyError(i)
     record.pop("owner_id", None)
     return record
+
+
+def set_contract_analysis(i, owner_id, analysis):
+    """Atomically replace saved contract analysis without overwriting document edits."""
+    if not ID.match(i):
+        raise KeyError(i)
+    if _MONGO_DB is not None:
+        result = _MONGO_DB.documents.update_one(
+            {"_id": i, "owner_id": owner_id},
+            {"$set": {"contract_analysis": copy.deepcopy(analysis),
+                      "updated_at": datetime.now(timezone.utc)}})
+        if result.matched_count != 1:
+            raise KeyError(i)
+        return
+    with _RECORD_LOCK:
+        record = load(i, owner_id)
+        record["contract_analysis"] = copy.deepcopy(analysis)
+        save(record, owner_id)
+
+
+def _contract_settings_path(owner_id):
+    owner_key = hashlib.sha256(str(owner_id).encode("utf-8")).hexdigest()
+    return ROOT / "contract-settings" / f"{owner_key}.json"
+
+
+def contract_analysis_settings(owner_id):
+    """Return owner-scoped contract-analysis settings, if saved."""
+    if _MONGO_DB is not None:
+        row = _MONGO_DB.contract_analysis_settings.find_one({"owner_id": owner_id})
+        if not row:
+            return None
+        row.pop("_id", None)
+        row.pop("owner_id", None)
+        return row
+    path = _contract_settings_path(owner_id)
+    try:
+        row = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if row.get("owner_id") != owner_id:
+        return None
+    row.pop("owner_id", None)
+    return row
+
+
+def save_contract_analysis_settings(owner_id, settings):
+    """Persist a validated owner-specific scoring configuration."""
+    if _MONGO_DB is not None:
+        _MONGO_DB.contract_analysis_settings.replace_one(
+            {"owner_id": owner_id},
+            {**copy.deepcopy(settings), "owner_id": owner_id,
+             "updated_at": datetime.now(timezone.utc)}, upsert=True)
+        return
+    path = _contract_settings_path(owner_id)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        os.chmod(path.parent, 0o700)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(json.dumps({**copy.deepcopy(settings), "owner_id": owner_id}),
+                             encoding="utf-8")
+        if os.name != "nt":
+            os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+        if os.name != "nt":
+            os.chmod(path, 0o600)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 def delete(i, owner_id=_WORKSPACE_OWNER):
     record = load(i, owner_id)

@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
-from backend.app import ai_engine, auth, store
+from backend.app import ai_engine, auth, conversations, store
 from backend.app.auth_store import AuthRepository
 from backend.app.main import app
 from backend.app import jobs
@@ -47,6 +47,125 @@ def test_general_conversation_streams_and_persists_without_document_context(clie
     assert [message["role"] for message in history["messages"]] == ["user", "assistant"]
     assert history["messages"][-1]["text"] == "Compound interest adds interest over time."
     assert history["messages"][-1]["provider"] == "ollama"
+
+
+def test_conversation_create_validates_and_normalizes_titles(client):
+    create_account(client, "conversation-title@example.test")
+    sign_in(client, "conversation-title@example.test")
+
+    short = post_csrf(client, "/api/v1/conversations", {"title": "  Loan   review  "})
+    assert short.status_code == 201, short.text
+    assert short.json()["title"] == "Loan review"
+
+    exact_limit_title = "x" * 1000
+    exact_limit = post_csrf(client, "/api/v1/conversations", {"title": exact_limit_title})
+    assert exact_limit.status_code == 201, exact_limit.text
+    assert exact_limit.json()["title"] == exact_limit_title
+
+    oversized = post_csrf(client, "/api/v1/conversations", {"title": "x" * 1001})
+    assert oversized.status_code == 422
+    assert "Conversation title must be 1000 characters or fewer." in oversized.text
+
+    for empty_title in ("", "   \t\n  "):
+        empty = post_csrf(client, "/api/v1/conversations", {"title": empty_title})
+        assert empty.status_code == 422
+        assert "Conversation title cannot be empty." in empty.text
+
+    default_title = post_csrf(client, "/api/v1/conversations", {})
+    assert default_title.status_code == 201, default_title.text
+    assert default_title.json()["title"] == "New conversation"
+
+
+def test_conversation_can_be_renamed_pinned_and_updated_with_documents(client, monkeypatch):
+    create_account(client, "conversation-management@example.test")
+    sign_in(client, "conversation-management@example.test")
+    document_id = "b" * 32
+    monkeypatch.setattr(store, "load", lambda requested_id, owner_id: {
+        "id": requested_id, "owner_id": owner_id, "filename": "terms.docx", "status": "needs_review",
+        "doc_type": "unknown", "source_format": "docx", "source_locator_type": "section",
+        "pages": ["The agreement requires monthly repayment."],
+    })
+    created = post_csrf(client, "/api/v1/conversations", {"title": "First title"})
+    assert created.status_code == 201, created.text
+    conversation_id = created.json()["id"]
+
+    updated = post_csrf(client, f"/api/v1/conversations/{conversation_id}", {
+        "title": "  Review   agreement  ", "is_pinned": True, "document_ids": [document_id],
+    }, method="PATCH")
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["title"] == "Review agreement"
+    assert updated.json()["is_pinned"] is True
+    assert updated.json()["document_ids"] == [document_id]
+    assert updated.json()["document_filenames"] == ["terms.docx"]
+
+    unpinned = post_csrf(client, f"/api/v1/conversations/{conversation_id}", {"is_pinned": False}, method="PATCH")
+    assert unpinned.status_code == 200, unpinned.text
+    assert unpinned.json()["is_pinned"] is False
+    assert client.get("/api/v1/conversations").json()["conversations"][0]["title"] == "Review agreement"
+
+
+def test_automatic_conversation_title_generation_caps_at_1000_characters():
+    question = "What is inflation and how might it affect a floating-rate loan? " + "Explain this clearly. " * 60
+    generated_title = conversations.conversation_title_from_question(question)
+
+    assert len(generated_title) <= 1000
+    assert generated_title.endswith("...")
+    assert generated_title[:-3].rstrip()[-1].isalnum() or generated_title[:-3].rstrip()[-1] in ".?!"
+
+
+def test_long_question_gets_bounded_title_and_is_saved_in_full(client, monkeypatch):
+    create_account(client, "long-question-title@example.test")
+    sign_in(client, "long-question-title@example.test")
+    question = (
+        "What is inflation, and how could it affect the cost of a floating-rate loan? "
+        + "Please explain the relationship in simple language. " * 6
+    ).strip()
+    generated_title = conversations.conversation_title_from_question(question)
+    assert 1000 >= len(generated_title) > 0
+    assert generated_title == question
+
+    received_questions = []
+
+    def stream_answer(received_question, *args, **kwargs):
+        received_questions.append(received_question)
+        return ({"provider": "ollama", "model": "qwen3:4b", "mode": "local",
+                 "web_research_requested": False, "web_research_used": False,
+                 "web_research_note": None, "sources": []}, iter(["Inflation is a general rise in prices."]))
+
+    monkeypatch.setattr(ai_engine, "stream_answer", stream_answer)
+    created = post_csrf(client, "/api/v1/conversations", {
+        "document_ids": [], "title": generated_title, "mode": "local",
+    })
+    assert created.status_code == 201, created.text
+
+    streamed = post_csrf(client, f"/api/v1/conversations/{created.json()['id']}/messages/stream", {
+        "question": question, "mode": "local",
+    })
+    assert streamed.status_code == 200, streamed.text
+    assert "event: done" in streamed.text
+    assert received_questions == [question]
+    history = client.get(f"/api/v1/conversations/{created.json()['id']}/messages").json()
+    assert history["messages"][0]["text"] == question
+    assert history["conversation"]["title"] == generated_title
+
+
+def test_long_document_filename_does_not_change_conversation_title_limit(client, monkeypatch):
+    create_account(client, "long-document-name@example.test")
+    sign_in(client, "long-document-name@example.test")
+    document_id = "a" * 32
+    filename = "loan-agreement-" + "very-long-document-name-" * 7 + ".pdf"
+    monkeypatch.setattr(store, "load", lambda requested_id, owner_id: {
+        "id": document_id, "filename": filename, "doc_type": "loan_agreement",
+        "pages": [{"page": 1, "text": "Loan agreement terms"}], "status": "completed",
+    })
+
+    created = post_csrf(client, "/api/v1/conversations", {
+        "document_ids": [document_id], "title": "Review loan agreement",
+    })
+    assert created.status_code == 201, created.text
+    assert created.json()["title"] == "Review loan agreement"
+    assert created.json()["document_filename"] == filename
+    assert len(created.json()["document_filename"]) > 120
 
 
 def test_ai_status_requires_authenticated_user(client):
@@ -126,9 +245,9 @@ def client(tmp_path, monkeypatch):
     app.dependency_overrides.update(old_overrides)
 
 
-def post_csrf(client, path, body):
+def post_csrf(client, path, body, method="POST"):
     csrf = client.cookies.get("bankease_csrf")
-    return client.post(path, json=body, headers={"X-CSRF-Token": csrf} if csrf else {})
+    return client.request(method, path, json=body, headers={"X-CSRF-Token": csrf} if csrf else {})
 
 
 def create_account(client, email, password="correct horse battery staple 2026"):
@@ -232,6 +351,46 @@ def test_documents_are_private_to_the_account(client, tmp_path, monkeypatch):
     assert other_archive.status_code == 200
     with ZipFile(BytesIO(other_archive.content)) as bundle:
         assert not any(name.startswith("documents/") for name in bundle.namelist())
+
+
+def test_document_workspace_metadata_rename_preview_and_download(client, tmp_path):
+    create_account(client, "document-workspace@example.test")
+    sign_in(client, "document-workspace@example.test")
+    pdf = tmp_path / "workspace-source.pdf"
+    make(pdf)
+    with pdf.open("rb") as stream:
+        uploaded = client.post("/api/v1/documents", files={"file": (pdf.name, stream, "application/pdf")},
+                               headers={"X-CSRF-Token": client.cookies.get("bankease_csrf")})
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uploaded.json()["id"]
+
+    listed = client.get("/api/v1/documents").json()["documents"]
+    item = next(row for row in listed if row["id"] == document_id)
+    assert item["source_available"] is True
+    assert item["source_format"] == "pdf"
+
+    renamed = post_csrf(client, f"/api/v1/documents/{document_id}", {"filename": "Quarterly loan review"}, method="PATCH")
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["filename"] == "Quarterly loan review.pdf"
+    assert renamed.json()["source_available"] is True
+    assert client.get("/api/v1/documents").json()["documents"][0]["filename"] == "Quarterly loan review.pdf"
+    history = client.get(f"/api/v1/documents/{document_id}/versions").json()
+    assert history["versions"][0]["filename"] == "Quarterly loan review.pdf"
+
+    preview = client.get(f"/api/v1/documents/{document_id}/preview")
+    download = client.get(f"/api/v1/documents/{document_id}/preview?download=true")
+    assert preview.status_code == 200 and preview.headers["content-disposition"] == "inline"
+    assert download.status_code == 200 and download.headers["content-disposition"].startswith("attachment;")
+    assert "Quarterly%20loan%20review.pdf" in download.headers["content-disposition"]
+    assert download.content.startswith(b"%PDF")
+
+    wrong_extension = post_csrf(client, f"/api/v1/documents/{document_id}", {"filename": "other.txt"}, method="PATCH")
+    assert wrong_extension.status_code == 422
+    unsafe_path = post_csrf(client, f"/api/v1/documents/{document_id}", {"filename": "../unsafe.pdf"}, method="PATCH")
+    assert unsafe_path.status_code == 422
+    too_long = post_csrf(client, f"/api/v1/documents/{document_id}", {"filename": "x" * 121}, method="PATCH")
+    assert too_long.status_code == 422
+    assert client.get(f"/api/v1/documents/{document_id}").json()["filename"] == "Quarterly loan review.pdf"
 
 
 def test_account_deletion_removes_original_source_files(client, tmp_path):

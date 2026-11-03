@@ -6,7 +6,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from fastapi.responses import StreamingResponse
 
 from . import ai_engine, auth, qa, store
@@ -15,6 +15,7 @@ from . import ai_engine, auth, qa, store
 router = APIRouter(prefix="/api/v1/conversations", tags=["conversations"])
 ai_router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 SUPPORTED_DOCUMENT_TYPES = {"loan_agreement", "kfs", "sanction_letter", "repayment_schedule", "fee_schedule", "annexure", "insurance_policy", "financial_statement", "audit_report"}
+MAX_CONVERSATION_TITLE_LENGTH = 1000
 logger = logging.getLogger("bankease.ai")
 
 
@@ -26,6 +27,21 @@ def _repo(request):
 
 def _now():
     return datetime.now(timezone.utc).isoformat(timespec="microseconds")
+
+
+def conversation_title_from_question(question: str) -> str:
+    """Create a compact, word-aware title without changing the saved message."""
+    normalized = re.sub(r"\s+", " ", question).strip()
+    if not normalized:
+        return "New conversation"
+    if len(normalized) <= MAX_CONVERSATION_TITLE_LENGTH:
+        return normalized
+
+    prefix = normalized[:MAX_CONVERSATION_TITLE_LENGTH - 3]
+    last_word_boundary = prefix.rfind(" ")
+    if last_word_boundary > 0:
+        prefix = prefix[:last_word_boundary]
+    return f"{prefix.rstrip()}..."
 
 
 def _conversation_out(row):
@@ -42,6 +58,7 @@ def _conversation_out(row):
         "updated_at": row["updated_at"],
         "message_count": row.get("message_count", 0),
         "mode": row.get("mode", "local"),
+        "is_pinned": bool(row.get("is_pinned", False)),
     }
 
 
@@ -54,8 +71,20 @@ def _message_out(row):
 class ConversationCreate(BaseModel):
     document_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
     document_ids: list[str] = Field(default_factory=list, max_length=5)
-    title: str = Field(default="New conversation", min_length=1, max_length=120)
+    title: str = Field(default="New conversation", min_length=1, max_length=MAX_CONVERSATION_TITLE_LENGTH)
     mode: str = Field(default="local", pattern=r"^(local|hosted|auto|hybrid)$")
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_and_validate_title(cls, value):
+        if not isinstance(value, str):
+            raise ValueError("Conversation title must be text.")
+        title = re.sub(r"\s+", " ", value).strip()
+        if not title:
+            raise ValueError("Conversation title cannot be empty.")
+        if len(title) > MAX_CONVERSATION_TITLE_LENGTH:
+            raise ValueError(f"Conversation title must be {MAX_CONVERSATION_TITLE_LENGTH} characters or fewer.")
+        return title
 
     @model_validator(mode="after")
     def validate_documents(self):
@@ -69,6 +98,31 @@ class ConversationCreate(BaseModel):
         self.document_ids = ids
         self.document_id = ids[0] if ids else None
         return self
+
+
+class ConversationPatch(BaseModel):
+    title: str | None = Field(default=None, max_length=MAX_CONVERSATION_TITLE_LENGTH)
+    is_pinned: bool | None = None
+    document_ids: list[str] | None = Field(default=None, max_length=5)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value):
+        if value is None or not isinstance(value, str):
+            raise ValueError("Conversation title must be text.")
+        title = re.sub(r"\s+", " ", value).strip()
+        if not title:
+            raise ValueError("Conversation title cannot be empty.")
+        if len(title) > MAX_CONVERSATION_TITLE_LENGTH:
+            raise ValueError(f"Conversation title must be {MAX_CONVERSATION_TITLE_LENGTH} characters or fewer.")
+        return title
+
+    @field_validator("document_ids")
+    @classmethod
+    def validate_document_ids(cls, ids):
+        if ids is not None and (len(ids) != len(set(ids)) or any(not re.fullmatch(r"[0-9a-f]{32}", item) for item in ids)):
+            raise ValueError("Document IDs must be unique, valid document IDs.")
+        return ids
 
 
 class MessageCreate(BaseModel):
@@ -91,11 +145,11 @@ def _load_documents(document_ids: list[str], owner_id: str, require_ready: bool 
         if require_ready and document.get("status") not in {"completed", "needs_review"}:
             raise HTTPException(409, "Document analysis is not available for questions yet.")
         is_statement = str(document.get("doc_type", "")).startswith("bank_statement_")
-        is_section_text = document.get("source_locator_type") == "section" and document.get("source_format") == "docx"
+        is_section_text = document.get("source_locator_type") == "section" and bool(document.get("pages"))
         if require_ready and not is_statement and not is_section_text and (document.get("doc_type") not in SUPPORTED_DOCUMENT_TYPES or not document.get("pages")):
             raise HTTPException(409, "A selected source document no longer supports text questions.")
         if require_ready and is_section_text and not document.get("pages"):
-            raise HTTPException(409, "This DOCX has no extracted text to ask about.")
+            raise HTTPException(409, "This document has no extracted text to ask about.")
         if require_ready and is_statement and not document.get("transaction_count"):
             raise HTTPException(409, "This statement has no extracted transaction rows to ask about.")
         documents.append(document)
@@ -219,9 +273,45 @@ def _retrieve_statement_rows(question: str, documents: list[dict], owner_id: str
     return {"found": True, "answer": answer_text, "sources": sources, "mode": "statement-row-search"}
 
 
+def _is_summary_question(question: str) -> bool:
+    lowered = question.lower()
+    summary_terms = [
+        "summarize", "summary", "plain english", "simple language", "explain this document",
+        "explain this agreement", "important terms", "what should i be careful about",
+        "what are the important terms", "interest rate and emi", "loan summary", "key terms",
+        "what are the key terms", "document overview",
+    ]
+    return any(term in lowered for term in summary_terms)
+
+
+def _summary_fallback(documents: list[dict]):
+    sources = []
+    for document in documents:
+        for page_number, page_text in enumerate(document.get("pages") or [], 1):
+            for chunk in qa.chunks([page_text])[:3]:
+                sources.append({
+                    "document_id": document["id"],
+                    "filename": document.get("filename", "Document"),
+                    "page": chunk.get("page"),
+                    "location": f"page {page_number}",
+                    "text": chunk["text"],
+                    "kind": "document",
+                    "score": 1.0,
+                })
+                if len(sources) >= 24:
+                    return {"found": True, "answer": "Document context loaded for summary generation.", "sources": sources, "mode": "document-summary-context"}
+    if not sources:
+        return {"found": False, "answer": "No document text is available for summary generation.", "sources": [], "mode": "document-summary-context"}
+    return {"found": True, "answer": "Document context loaded for summary generation.", "sources": sources, "mode": "document-summary-context"}
+
+
 def _retrieved(question: str, documents: list[dict], owner_id: str):
     if not documents:
         return {"found": False, "answer": "", "sources": [], "mode": "extractive-fallback"}
+    if _is_summary_question(question):
+        summary_result = _summary_fallback(documents)
+        if summary_result["found"]:
+            return summary_result
     statement_documents = [document for document in documents
                            if str(document.get("doc_type", "")).startswith("bank_statement_")]
     text_documents = [document for document in documents if document not in statement_documents]
@@ -319,6 +409,34 @@ def list_conversations(request: Request, limit: int = Query(30, ge=1, le=100), u
     return {"conversations": [_conversation_out(row) for row in rows]}
 
 
+@router.patch("/{conversation_id}", dependencies=[Depends(auth.require_csrf)])
+def update_conversation(conversation_id: str, body: ConversationPatch, request: Request,
+                        user=Depends(auth.get_current_user)):
+    repository = _repo(request)
+    query = {"_id": conversation_id, "owner_id": user["id"]}
+    conversation = repository.find_one("conversations", query)
+    if not conversation:
+        raise HTTPException(404, "Conversation not found")
+    changes = body.model_dump(exclude_unset=True)
+    if "document_ids" in changes:
+        documents = _load_documents(changes["document_ids"], user["id"])
+        for document in documents:
+            is_statement = str(document.get("doc_type", "")).startswith("bank_statement_")
+            is_section_text = document.get("source_locator_type") == "section" and bool(document.get("pages"))
+            if not is_statement and not is_section_text and (document.get("doc_type") not in SUPPORTED_DOCUMENT_TYPES or not document.get("pages")):
+                raise HTTPException(409, "Choose documents with extracted text or imported statement rows for this assistant.")
+            if is_statement and not document.get("transaction_count"):
+                raise HTTPException(409, "This statement has no extracted transaction rows to ask about.")
+        changes["document_id"] = changes["document_ids"][0] if changes["document_ids"] else None
+        filenames = [document.get("filename", "Document") for document in documents]
+        changes["document_filename"] = filenames[0] if filenames else "General conversation"
+        changes["document_filenames"] = filenames
+    if "title" in changes:
+        changes["updated_at"] = _now()
+    repository.update_one("conversations", query, changes)
+    return _conversation_out(repository.find_one("conversations", query))
+
+
 @router.post("", status_code=201, dependencies=[Depends(auth.require_csrf)])
 def create_conversation(body: ConversationCreate, request: Request, user=Depends(auth.get_current_user)):
     documents = []
@@ -328,11 +446,11 @@ def create_conversation(body: ConversationCreate, request: Request, user=Depends
         except KeyError as exc:
             raise HTTPException(404, "Document not found") from exc
         is_statement = str(document.get("doc_type", "")).startswith("bank_statement_")
-        is_section_text = document.get("source_locator_type") == "section" and document.get("source_format") == "docx"
+        is_section_text = document.get("source_locator_type") == "section" and bool(document.get("pages"))
         if not is_statement and not is_section_text and (document.get("doc_type") not in SUPPORTED_DOCUMENT_TYPES or not document.get("pages")):
             raise HTTPException(409, "Choose supported loan or insurance documents with extracted page text for this assistant.")
         if is_section_text and not document.get("pages"):
-            raise HTTPException(409, "This DOCX has no extracted text to ask about.")
+            raise HTTPException(409, "This document has no extracted text to ask about.")
         if document.get("status") not in {"completed", "needs_review"}:
             raise HTTPException(409, "Wait until every selected document has finished analysis before starting a conversation.")
         if is_statement and not document.get("transaction_count"):
@@ -347,7 +465,7 @@ def create_conversation(body: ConversationCreate, request: Request, user=Depends
         "document_ids": body.document_ids,
         "document_filename": filenames[0] if filenames else "General conversation",
         "document_filenames": filenames,
-        "title": body.title.strip() or "New conversation",
+        "title": body.title,
         "mode": body.mode,
         "message_count": 0,
         "created_at": now,
@@ -402,7 +520,7 @@ def create_message(conversation_id: str, body: MessageCreate, request: Request,
     repository.update_one("conversations", query, {
         "updated_at": assistant_message["created_at"],
         "message_count": int(conversation.get("message_count", 0)) + 2,
-        "title": question[:120] if int(conversation.get("message_count", 0)) == 0 else conversation["title"],
+        "title": conversation_title_from_question(question) if int(conversation.get("message_count", 0)) == 0 else conversation["title"],
         "mode": body.mode,
     })
     return {"conversation_id": conversation_id, "answer": result, "messages": [
@@ -540,7 +658,7 @@ def stream_message(conversation_id: str, body: MessageCreate, request: Request,
                 repository.update_one("conversations", query, {
                     "updated_at": assistant_message["created_at"],
                     "message_count": previous_count + 2,
-                    "title": question[:120] if previous_count == 0 else conversation["title"], "mode": body.mode,
+                    "title": conversation_title_from_question(question) if previous_count == 0 else conversation["title"], "mode": body.mode,
                 })
             final_text = assistant_message.get("text", final_text)
             result = {"answer": final_text, "found": bool(assistant_message["sources"] or not documents),

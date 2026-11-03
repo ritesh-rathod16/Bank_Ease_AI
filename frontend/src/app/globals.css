@@ -20,11 +20,11 @@
   --be-sidebar: #ffffff;
   --be-panel: #ffffff;
   --be-panel-raised: #f1f5f9;
-  --be-ink: #111827;
+  --be-ink: #172033;
   --be-muted: #64748b;
-  --be-line: #e5eaf2;
-  --be-primary: #0866f5;
-  --be-primary-strong: #0754d0;
+  --be-line: #e2e8f0;
+  --be-primary: #4f46e5;
+  --be-primary-strong: #4338ca;
   --be-warning: #a16207;
   --be-success: #15803d;
   --be-error: #b91c1c;
@@ -111,7 +111,7 @@ button, a, input, textarea, select { outline-offset: 3px; }
 
 .dashboard-shell-grid { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 64rem) {
-  .dashboard-shell-grid { grid-template-columns: var(--workspace-sidebar-width, 168px) 8px minmax(0, 1fr); }
+  .dashboard-shell-grid { grid-template-columns: var(--workspace-sidebar-width, 248px) 12px minmax(0, 1fr); }
 }
 
 :root[data-theme="dark"] .workspace-navigation { background: var(--be-sidebar); }

@@ -27,8 +27,8 @@ function localLink(source: string | null | undefined, key: "verify" | "reset") {
   } catch { return null; }
 }
 
-function Field({ label, error, ...props }: { label: string; error?: string } & ComponentProps<typeof Input>) {
-  return <label className="grid gap-1.5 text-xs font-medium text-[#ccd5d1]">{label}<Input {...props} aria-invalid={Boolean(error)} />{error && <span className="text-xs text-red-300">{error}</span>}</label>;
+function Field({ label, error, className, ...props }: { label: string; error?: string; className?: string } & ComponentProps<typeof Input>) {
+  return <label className="grid gap-1.5 text-xs font-medium text-[#172033]">{label}<Input {...props} className={`bg-[#F8FAFC] border-[#DCE3EA] text-[#172033] placeholder:text-[#94A3B8] ${className ?? ""}`} aria-invalid={Boolean(error)} />{error && <span className="text-xs text-red-600">{error}</span>}</label>;
 }
 
 function Frame({ mode, children, note }: { mode: Mode; children: ReactNode; note?: ReactNode }) {
@@ -40,29 +40,29 @@ function Frame({ mode, children, note }: { mode: Mode; children: ReactNode; note
     reset: "Use a new password with at least 12 characters.",
   };
   return <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-    <div className="grid w-full max-w-[1020px] overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl shadow-black/20 md:grid-cols-[.95fr_1.05fr]">
-      <section className="hidden flex-col justify-between bg-[#192522] p-10 md:flex">
-        <Link className="flex items-center gap-3" href="/"><span className="grid size-10 place-items-center rounded-xl border border-teal/25 bg-teal/10 text-teal"><ShieldCheck size={21} /></span><span className="font-semibold tracking-tight">BankEase <span className="text-teal">AI</span></span></Link>
-        <div className="max-w-sm"><Eyebrow>DOCUMENT-GROUNDED LOAN INSIGHTS</Eyebrow><h1 className="mt-4 text-4xl font-semibold leading-tight tracking-[-.04em]">Make the fine print easier to understand.</h1><p className="mt-4 text-sm leading-6 text-muted">Review extracted terms, check repayment math, and find source passages in your loan documents.</p></div>
-        <p className="text-xs leading-5 text-muted">Informational and educational use only. Always verify important details against your original agreement.</p>
+    <div className="grid w-full max-w-[1020px] overflow-hidden rounded-2xl border border-[#DCE3EA] bg-[#FFFFFF] shadow-[0_30px_80px_rgba(15,23,42,0.12)] md:grid-cols-[.95fr_1.05fr]">
+      <section className="hidden flex-col justify-between bg-[#102820] p-10 text-white md:flex">
+        <Link className="flex items-center gap-3 text-white" href="/"><span className="grid size-10 place-items-center rounded-xl border border-[#9AE6B4]/30 bg-[#163c32] text-[#B6F7D7]"><ShieldCheck size={21} /></span><span className="font-semibold tracking-tight">BankEase <span className="text-[#9AE6B4]">AI</span></span></Link>
+        <div className="max-w-sm"><Eyebrow className="text-[#A7F3D0]">DOCUMENT-GROUNDED LOAN INSIGHTS</Eyebrow><h1 className="mt-4 text-4xl font-semibold leading-tight tracking-[-.04em] text-white">Make the fine print easier to understand.</h1><p className="mt-4 text-sm leading-6 text-[#CFE6DF]">Review extracted terms, check repayment math, and find source passages in your loan documents.</p></div>
+        <p className="text-xs leading-5 text-[#CFE6DF]">Informational and educational use only. Always verify important details against your original agreement.</p>
       </section>
-      <section className="p-6 sm:p-10">
-        <div className="mb-8 md:hidden"><Link className="font-semibold tracking-tight" href="/">BankEase <span className="text-teal">AI</span></Link></div>
-        <Eyebrow>ACCOUNT ACCESS</Eyebrow><h2 className="mt-2 text-2xl font-semibold tracking-tight">{title[mode]}</h2><p className="mt-2 text-sm text-muted">{description[mode]}</p>
+      <section className="bg-[#FFFFFF] p-6 sm:p-10">
+        <div className="mb-8 md:hidden"><Link className="font-semibold tracking-tight text-[#172033]" href="/">BankEase <span className="text-[#4F46E5]">AI</span></Link></div>
+        <Eyebrow className="text-[#4F46E5]">ACCOUNT ACCESS</Eyebrow><h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#172033]">{title[mode]}</h2><p className="mt-2 text-sm text-[#64748B]">{description[mode]}</p>
         <div className="mt-7">{children}</div>
-        {note && <div className="mt-5 rounded-lg border border-line bg-[#131c19] p-3 text-xs leading-5 text-muted">{note}</div>}
-        <p className="mt-8 border-t border-line pt-4 text-[11px] leading-5 text-muted">Passwords are stored using a one-way password hash. Sessions are stored server-side and use HTTP-only cookies.</p>
+        {note && <div className="mt-5 rounded-lg border border-[#D7EDE7] bg-[#F3F8F6] p-3 text-xs leading-5 text-[#2B4D43]">{note}</div>}
+        <p className="mt-8 border-t border-[#E2E8F0] pt-4 text-[11px] leading-5 text-[#64748B]">Passwords are stored using a one-way password hash. Sessions are stored server-side and use HTTP-only cookies.</p>
       </section>
     </div>
   </main>;
 }
 
 function FormMessage({ children, kind = "info" }: { children: ReactNode; kind?: "info" | "error" | "success" }) {
-  return <div role="status" aria-live="polite" className={`rounded-lg border px-3 py-2.5 text-xs leading-5 ${kind === "error" ? "border-red-900/60 bg-red-950/30 text-red-200" : kind === "success" ? "border-teal/30 bg-teal/10 text-teal" : "border-line bg-[#131c19] text-muted"}`}>{children}</div>;
+  return <div role="status" aria-live="polite" className={`rounded-lg border px-3 py-2.5 text-xs leading-5 ${kind === "error" ? "border-red-200 bg-red-50 text-red-700" : kind === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-[#DCE3EA] bg-[#F8FAFC] text-[#334155]"}`}>{children}</div>;
 }
 
 function Submit({ busy, children }: { busy: boolean; children: ReactNode }) {
-  return <Button className="mt-2 w-full" type="submit" disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : <ArrowRight size={16} />}{children}</Button>;
+  return <Button className="mt-2 w-full bg-[#4F46E5] text-white hover:bg-[#4338CA] active:bg-[#3730A3] focus-visible:ring-4 focus-visible:ring-[#C7D2FE] focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50" type="submit" disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : <ArrowRight size={16} />}{children}</Button>;
 }
 
 function LoginForm() {
@@ -79,8 +79,8 @@ function LoginForm() {
     <Field label="Password" type="password" autoComplete="current-password" {...form.register("password")} error={form.formState.errors.password?.message} />
     {mutation.isError && <FormMessage kind="error">{mutation.error.message}</FormMessage>}
     <Submit busy={mutation.isPending}>Sign in</Submit>
-    <div className="flex flex-wrap justify-between gap-3 text-xs"><Link className="text-teal hover:underline" href="/forgot-password">Forgot password?</Link><Link className="text-muted hover:text-ink" href="/register">Create an account</Link></div>
-    <Link className="text-xs text-muted hover:text-teal" href="/verify-email">Resend email verification</Link>
+    <div className="flex flex-wrap justify-between gap-3 text-xs"><Link className="text-[#4F46E5] hover:text-[#4338CA] hover:underline" href="/forgot-password">Forgot password?</Link><Link className="text-[#64748B] hover:text-[#172033] hover:underline" href="/register">Create an account</Link></div>
+    <Link className="text-xs text-[#64748B] hover:text-[#4F46E5] hover:underline" href="/verify-email">Resend email verification</Link>
   </form>;
 }
 
@@ -99,8 +99,8 @@ function RegisterForm() {
     {mutation.isError && <FormMessage kind="error">{mutation.error.message}</FormMessage>}
     {mutation.isSuccess && <FormMessage kind="success">{mutation.data.message}{verificationPath && <> <Link className="font-semibold underline" href={verificationPath}>Open the local verification link</Link></>}</FormMessage>}
     <Submit busy={mutation.isPending}>Create account</Submit>
-    <p className="text-xs text-muted">Email delivery is not configured. In local development, the verification link appears here.</p>
-    <Link className="text-xs text-teal hover:underline" href="/login">Already registered? Sign in</Link>
+    <p className="text-xs text-[#64748B]">Email delivery is not configured. In local development, the verification link appears here.</p>
+    <Link className="text-xs text-[#4F46E5] hover:text-[#4338CA] hover:underline" href="/login">Already registered? Sign in</Link>
   </form>;
 }
 
@@ -116,7 +116,7 @@ function ForgotForm() {
     {mutation.isError && <FormMessage kind="error">{mutation.error.message}</FormMessage>}
     {mutation.isSuccess && <FormMessage kind="success">{mutation.data.message}{resetPath && <> <Link className="font-semibold underline" href={resetPath}>Open the local reset link</Link></>}</FormMessage>}
     <Submit busy={mutation.isPending}>Request reset</Submit>
-    <Link className="text-xs text-teal hover:underline" href="/login">Back to sign in</Link>
+    <Link className="text-xs text-[#4F46E5] hover:text-[#4338CA] hover:underline" href="/login">Back to sign in</Link>
   </form>;
 }
 
@@ -184,7 +184,7 @@ export function VerifyEmailFlow({ initialToken = "" }: { initialToken?: string }
         {resend.isSuccess && resend.data.development_verification_url && <FormMessage kind="success"><Link className="underline" href={localLink(resend.data.development_verification_url, "verify") ?? "/verify-email"}>Open the local verification link</Link></FormMessage>}
         <Submit busy={resend.isPending || verification.isPending}>Resend verification</Submit>
       </form>
-      <Link className="text-xs text-teal hover:underline" href="/login">Back to sign in</Link>
+      <Link className="text-xs text-[#4F46E5] hover:text-[#4338CA] hover:underline" href="/login">Back to sign in</Link>
     </div>
   </Frame>;
 }

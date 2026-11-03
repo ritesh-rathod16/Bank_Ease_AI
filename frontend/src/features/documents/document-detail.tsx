@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, ClipboardCheck, ExternalLink, LoaderCircle, MessageSquareText, Pencil, RotateCcw, Trash2, X } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -18,24 +18,19 @@ import { ApiError } from "@/lib/api/client";
 import { StatementWorkspace } from "@/features/documents/statement-workspace";
 import { SourcePreview } from "@/features/documents/source-preview";
 import { VersionHistory } from "@/features/documents/version-history";
-import type { Term } from "@/types/api";
+import { AssistantPanel } from "@/features/dashboard/assistant-panel";
+import type { AskResult, Term } from "@/types/api";
 
 const correctionSchema = z.object({ value: z.string().trim().min(1, "Enter the corrected value.").max(120), reason: z.string().max(500) });
 const reviewReasonSchema = z.object({ reason: z.string().max(500) });
 type CorrectionForm = z.infer<typeof correctionSchema>;
 const loanDocumentTypes = new Set(["loan_agreement", "kfs", "sanction_letter", "repayment_schedule", "fee_schedule", "annexure"]);
+const summaryQuestion = "Summarize this document in plain English for a borrower. Include the purpose, parties involved, key amounts, dates, obligations, fees, risks, and items to review. Use only facts from the document and say 'not clearly stated in this document' when a detail is missing. Cite the page or source for each major point.";
 
-function DocumentAssistantCard({ id, contextAvailable = true }: { id: string; contextAvailable?: boolean }) {
-  return <Surface className="border-blue-200/70 p-5 sm:p-6">
-    <div className="flex items-center gap-2"><MessageSquareText className="text-teal" size={17} /><Eyebrow>AI ASSISTANT</Eyebrow></div>
-    <p className="mt-2 text-xs leading-5 text-muted">{contextAvailable
-      ? "Ask BankEase AI about this document. It can explain the evidence it finds and answer broader financial questions in the same conversation."
-      : "Open BankEase AI for general financial questions. This document type is not currently available as chat context."}</p>
-    <Link href={`/dashboard/assistant?document_id=${encodeURIComponent(id)}`} className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-lg bg-blue-600 px-3.5 text-xs font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-      <MessageSquareText size={14} />Ask AI about this document
-    </Link>
-  </Surface>;
+function requestId() {
+  return crypto.randomUUID().replaceAll("-", "");
 }
+
 
 function evidenceLabel(term: Term) {
   if (!term.evidence_status) return null;
@@ -45,6 +40,142 @@ function evidenceLabel(term: Term) {
   if (term.evidence_status === "invalid_page") return "Source page reference is invalid";
   if (term.evidence_status === "invalid_bbox") return "Source highlight bounds need review";
   return "Source evidence needs review";
+}
+
+function computeSummaryQuality(summaryText: string, summarySources: AskResult["sources"]) {
+  const lowerText = summaryText.toLowerCase();
+  const hasPlainLanguage = lowerText.includes("plain english") || lowerText.includes("in simple terms") || lowerText.includes("in simple language") || lowerText.length > 220;
+  const hasUncertainty = lowerText.includes("not clearly stated") || lowerText.includes("not clearly stated in this document") || lowerText.includes("not stated");
+  const hasMajorEvidence = summarySources.length > 0;
+  const score = Math.min(100, Math.max(28, Math.round((hasMajorEvidence ? 35 : 10) + (hasPlainLanguage ? 25 : 8) + (hasUncertainty ? 20 : 8) + (summaryText.trim().length > 180 ? 20 : 6))));
+  const label = score >= 85 ? "Strong" : score >= 70 ? "Good" : score >= 50 ? "Needs review" : "Weak";
+  const note = score >= 85 ? "This summary is well grounded and easy to understand." : score >= 70 ? "This summary is useful, but a quick check is still recommended." : score >= 50 ? "This summary may be helpful, but the wording or evidence should be reviewed." : "This summary needs a tighter review before relying on it.";
+
+  const strengths = [
+    hasMajorEvidence ? "The summary references source-backed evidence." : "Evidence references are limited, so the summary should be checked against the original document.",
+    hasPlainLanguage ? "The explanation is written in simpler, borrower-friendly language." : "The language is a bit technical and could be simplified further.",
+    hasUncertainty ? "The summary flags missing or unclear information clearly." : "The summary could make missing document details more explicit.",
+  ].filter(Boolean);
+
+  const risks = [
+    !hasMajorEvidence && "Source evidence is not clearly listed for this summary.",
+    !hasPlainLanguage && "The explanation may be harder for a borrower to follow.",
+    !hasUncertainty && "The summary may not clearly call out what the document does not say.",
+  ].filter((item): item is string => Boolean(item));
+
+  const actions = [
+    "Compare the summary against the original source before finalising any decision.",
+    "Check all dates, amounts, and obligations listed in the document again.",
+    hasUncertainty ? "Keep the uncertainty notes in place so missing details remain visible." : "Add a clearer note about anything the document does not spell out.",
+  ];
+
+  return {
+    score,
+    label,
+    note,
+    strengths,
+    risks,
+    actions,
+    checks: [
+      { label: "Source-backed", passed: hasMajorEvidence },
+      { label: "Plain-language explanation", passed: hasPlainLanguage },
+      { label: "Uncertainty flagged", passed: hasUncertainty },
+    ],
+  };
+}
+
+function escapePdfText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\r/g, " ").replace(/\n/g, " ").replace(/\t/g, " ");
+}
+
+function buildReviewPdfBlob(docName: string, summaryText: string, sources: AskResult["sources"]) {
+  const allLines = [
+    "BankEase AI - Document review",
+    docName,
+    "",
+    "Plain-English summary",
+    ...((summaryText || "Summary not available yet.").split(/\n+/).flatMap((paragraph) => {
+      const words = paragraph.trim().split(/\s+/).filter(Boolean);
+      const wrapped: string[] = [];
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        if (candidate.length > 92) {
+          if (current) wrapped.push(current);
+          current = word;
+        } else {
+          current = candidate;
+        }
+      }
+      if (current) wrapped.push(current);
+      return wrapped.length ? wrapped : [paragraph];
+    })),
+    "",
+    "Evidence references:",
+    ...(sources.length ? [] : ["No supporting passages were explicitly attached to this summary."]),
+    ...sources.flatMap((source, index) => {
+      const label = source.title ?? source.filename ?? `Evidence ${index + 1}`;
+      const pageText = source.page ? `Page ${source.page}` : "Source excerpt";
+      const text = source.text ? source.text : "No excerpt available.";
+      return [`${label} · ${pageText}`, text.substring(0, 220)];
+    }),
+  ];
+
+  const pages: string[][] = [[]];
+  for (const line of allLines) {
+    if (pages[pages.length - 1].length >= 38) {
+      pages.push([]);
+    }
+    pages[pages.length - 1].push(line || "");
+  }
+
+  const objects: Record<number, string> = {};
+  const kids: string[] = [];
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = "<< /Type /Pages /Kids [] /Count 0 >>";
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+
+  let nextObjectId = 4;
+  for (const pageLines of pages) {
+    let stream = "BT\n/F1 10 Tf\n50 780 Td\n";
+    for (let lineIndex = 0; lineIndex < pageLines.length; lineIndex += 1) {
+      const line = pageLines[lineIndex];
+      if (lineIndex > 0 && lineIndex % 10 === 0) {
+        stream += "0 -120 Td\n";
+      }
+      stream += `(${escapePdfText(line)}) Tj\n`;
+      if (lineIndex < pageLines.length - 1) {
+        stream += "0 -14 Td\n";
+      }
+    }
+    stream += "ET\n";
+
+    const contentObjectId = nextObjectId++;
+    objects[contentObjectId] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+    const pageObjectId = nextObjectId++;
+    objects[pageObjectId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents ${contentObjectId} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`;
+    kids.push(`${pageObjectId} 0 R`);
+  }
+  objects[2] = `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`;
+
+  const pdf: string[] = ["%PDF-1.4\n"];
+  const offsets: Record<number, number> = {};
+  let cursor = pdf[0].length;
+  const objectIds = Object.keys(objects).map(Number).sort((a, b) => a - b);
+  for (const objectId of objectIds) {
+    offsets[objectId] = cursor;
+    pdf.push(`${objectId} 0 obj\n${objects[objectId]}\nendobj\n`);
+    cursor += pdf[pdf.length - 1].length;
+  }
+  const xrefOffset = cursor;
+  pdf.push(`xref\n0 ${Math.max(1, Math.max(...objectIds)) + 1}\n`);
+  pdf.push("0000000000 65535 f \n");
+  for (let objectId = 1; objectId <= Math.max(...objectIds); objectId += 1) {
+    pdf.push(`${String(offsets[objectId] ?? 0).padStart(10, "0")} 00000 n \n`);
+  }
+  pdf.push(`trailer\n<< /Size ${Math.max(...objectIds) + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+  return new Blob([pdf.join("")], { type: "application/pdf" });
 }
 
 export function DocumentDetail({ id }: { id: string }) {
@@ -107,10 +238,130 @@ export function DocumentDetail({ id }: { id: string }) {
     onError: (error) => toast.error(error.message),
   });
 
-  if (document.isLoading) return <div className="flex items-center gap-2 py-16 text-xs text-muted"><LoaderCircle className="animate-spin" size={15} />Loading document evidence…</div>;
-  if (document.isError || !document.data) return <Surface className="p-6"><p className="text-sm font-semibold">Document unavailable</p><p className="mt-2 text-xs text-muted">{document.error instanceof ApiError && document.error.status === 404 ? "It may have been deleted or belong to another account." : document.error?.message}</p><Link className="mt-4 inline-block text-xs text-teal hover:underline" href="/dashboard/documents">Return to my documents</Link></Surface>;
-
   const doc = document.data;
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, enabled: Boolean(document.data) });
+  const summaryStartedRef = useRef(false);
+  const [summaryText, setSummaryText] = useState("");
+  const [summarySources, setSummarySources] = useState<AskResult["sources"]>([]);
+  const summary = useMutation({
+    mutationFn: async () => {
+      if (!doc) throw new Error("Document is not available.");
+      const conversation = await api.createConversation([doc.id], `Simple summary: ${doc.filename}`);
+      const response = await api.sendConversationMessageStream(conversation.id, summaryQuestion, requestId(), {
+        mode: "local",
+        allow_hosted: false,
+        allow_hosted_documents: false,
+        web_research: false,
+      }, (delta) => setSummaryText((current) => current + delta));
+      return { response, conversationId: conversation.id };
+    },
+    onMutate: () => {
+      setSummaryText("");
+      setSummarySources([]);
+    },
+    onSuccess: ({ response }) => {
+      setSummaryText(response.answer.answer);
+      setSummarySources(response.answer.sources ?? []);
+      summaryStartedRef.current = false;
+      toast.success("AI summary generated.");
+    },
+    onError: (error) => {
+      summaryStartedRef.current = false;
+      toast.error(error instanceof Error ? error.message : "Could not generate the document summary.");
+    },
+  });
+
+  useEffect(() => {
+    if (!doc || summaryStartedRef.current || summary.isPending || summaryText) return;
+    const readyStatus = ["completed", "needs_review"];
+    if (!readyStatus.includes(doc.status)) return;
+    summaryStartedRef.current = true;
+    void summary.mutate();
+  }, [doc, summary, summary.isPending, summaryText]);
+  const reviewPdfUrl = useMemo(() => {
+    if (!doc) return "";
+    const blob = buildReviewPdfBlob(doc.filename, summaryText, summarySources);
+    return URL.createObjectURL(blob);
+  }, [doc, summaryText, summarySources]);
+
+  useEffect(() => {
+    return () => {
+      if (reviewPdfUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(reviewPdfUrl);
+      }
+    };
+  }, [reviewPdfUrl]);
+
+  if (document.isLoading) return <div className="flex items-center gap-2 py-16 text-xs text-muted"><LoaderCircle className="animate-spin" size={15} />Loading document evidence…</div>;
+  if (document.isError || !doc) return <Surface className="p-6"><p className="text-sm font-semibold">Document unavailable</p><p className="mt-2 text-xs text-muted">{document.error instanceof ApiError && document.error.status === 404 ? "It may have been deleted or belong to another account." : document.error?.message}</p><Link className="mt-4 inline-block text-xs text-teal hover:underline" href="/dashboard/documents">Return to my documents</Link></Surface>;
+
+  const downloadReviewPdf = () => {
+    if (!doc || !reviewPdfUrl) return;
+    const anchor = globalThis.document.createElement("a");
+    anchor.href = reviewPdfUrl;
+    anchor.download = `${doc.filename.replace(/\.[^/.]+$/, "") || "document-review"}-review.pdf`;
+    anchor.click();
+  };
+
+  const printReviewPdf = () => {
+    if (!doc || !reviewPdfUrl) {
+      toast.error("The review PDF is still loading. Please try again in a moment.");
+      return;
+    }
+
+    const printWindow = globalThis.window.open("", "_blank", "noopener,noreferrer,width=1200,height=900");
+    if (!printWindow) {
+      toast.error("Please allow pop-ups so the review PDF can be printed.");
+      window.open(reviewPdfUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    printWindow.document.write(`<!doctype html><html><head><title>${doc.filename} - Review</title><meta charset="utf-8" /><style>html,body{margin:0;height:100%;background:#f8fafc;font-family:Arial,sans-serif}body{display:flex;align-items:center;justify-content:center;padding:16px}embed{width:100%;height:calc(100vh - 32px);border:0;background:#fff}</style></head><body><embed src="${reviewPdfUrl}" type="application/pdf" /></body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+
+    const ready = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        window.open(reviewPdfUrl, "_blank", "noopener,noreferrer");
+      }
+    };
+
+    if (printWindow.document.readyState === "complete") {
+      ready();
+      return;
+    }
+    printWindow.addEventListener("load", ready, { once: true });
+  };
+
+  const exportReview = (format: "markdown" | "html" | "print") => {
+    if (!doc) return;
+    const baseName = doc.filename.replace(/\.[^/.]+$/, "") || "document-review";
+    const details = Object.entries(doc.terms ?? {}).map(([field, value]) => {
+      const currentValue = value.effective_value ?? value.value;
+      const page = value.page ? `Page ${value.page}` : "Page not stated";
+      return `- ${humanize(field)}: ${currentValue ?? "Not found"} (${page})`;
+    }).join("\n");
+    const bodyText = summaryText || `# ${doc.filename}\n\n## Overview\n${doc.analysis_note || "The document was analyzed and extracted values were saved for review."}\n\n## Key extracted values\n${details || "No extracted values were recorded."}`;
+    if (format === "print") {
+      printReviewPdf();
+      return;
+    }
+    const extension = format === "html" ? "html" : "md";
+    const content = format === "html"
+      ? `<!doctype html><html><head><meta charset="utf-8"><title>${doc.filename}</title></head><body><pre>${String(bodyText).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></body></html>`
+      : bodyText;
+    const blob = new Blob([content], { type: format === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = globalThis.document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${baseName}-review.${extension}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const isInsurance = doc.doc_type === "insurance_policy";
   const isKyc = doc.doc_type === "kyc_form";
   const isFinancial = doc.doc_type === "financial_statement";
@@ -145,18 +396,84 @@ export function DocumentDetail({ id }: { id: string }) {
     <VersionHistory id={id} docType={doc.doc_type} />
   </div>;
   if (doc.doc_type === "unknown") return <div className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><Link href="/dashboard/documents" className="inline-flex items-center gap-2 text-xs text-muted hover:text-teal"><ArrowLeft size={14} />My documents</Link><Eyebrow className="mt-5">TEXT EXTRACTED · CLASSIFICATION NEEDED</Eyebrow><h1 className="mt-2 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{doc.filename}</h1><p className="mt-2 text-xs text-muted">{doc.source_locator_type === "section" ? `${doc.section_count ?? 0} text sections · page layout unavailable` : `${doc.page_count} pages`} · Structured analysis unavailable</p></div><div className="flex flex-wrap gap-2"><Link href={`/dashboard/assistant?document_id=${id}`} className="inline-flex min-h-8 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"><MessageSquareText size={14} />AI Assistant</Link><Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm("Delete this document analysis?")) remove.mutate(); }}><Trash2 size={14} />Delete</Button></div></div>
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><Link href="/dashboard/documents" className="inline-flex items-center gap-2 text-xs text-muted hover:text-teal"><ArrowLeft size={14} />My documents</Link><Eyebrow className="mt-5">TEXT EXTRACTED · CLASSIFICATION NEEDED</Eyebrow><h1 className="mt-2 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{doc.filename}</h1><p className="mt-2 text-xs text-muted">{doc.source_locator_type === "section" ? `${doc.section_count ?? 0} text sections · page layout unavailable` : `${doc.page_count} pages`} · Structured analysis unavailable</p></div><div className="flex flex-wrap gap-2"><Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm("Delete this document analysis?")) remove.mutate(); }}><Trash2 size={14} />Delete</Button></div></div>
     <VersionHistory id={id} docType={doc.doc_type} />
     <Surface className="border-amber-200 bg-amber-50 p-4 sm:p-5"><p className="text-xs font-semibold text-amber-950">{doc.suggested_doc_type ? `Possible document type: ${humanize(doc.suggested_doc_type)}${doc.suggested_loan_category ? ` · ${humanize(doc.suggested_loan_category)} loan` : ""}` : "This file was not classified as a supported loan document or bank statement."}</p><p className="mt-2 text-xs leading-5 text-amber-900">{doc.analysis_note ?? "Readable text is available, but BankEase did not run structured loan or statement analysis. Check the original pages before relying on any information."}</p></Surface>
     <SourcePreview id={id} filename={doc.filename} available={doc.source_available} />
-    <DocumentAssistantCard id={id} contextAvailable={doc.source_format === "docx" && doc.source_locator_type === "section"} />
   </div>;
   return <div className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><Link href="/dashboard/documents" className="inline-flex items-center gap-2 text-xs text-muted hover:text-teal"><ArrowLeft size={14} />My documents</Link><Eyebrow className="mt-5">DOCUMENT REVIEW · {humanize(doc.doc_type || "Document")}</Eyebrow><h1 className="mt-2 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{doc.filename}</h1><p className="mt-2 text-xs text-muted">{doc.page_count} pages · {humanize(doc.status)}{doc.ocr_pages?.length ? ` · OCR on pages ${doc.ocr_pages.join(", ")} — verify all extracted values against the scan` : ""}{doc.unreadable_pages?.length ? ` · Text unavailable on pages ${doc.unreadable_pages.join(", ")}` : ""}</p></div><div className="flex flex-wrap gap-2"><Link href={`/dashboard/assistant?document_id=${id}`} className="inline-flex min-h-8 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"><MessageSquareText size={14} />AI Assistant</Link><a className="inline-flex min-h-8 items-center gap-2 rounded-lg border border-line bg-panel-raised px-3 text-xs font-semibold text-ink hover:border-teal/30 hover:text-teal" href={api.reportUrl(id)} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open report</a><Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm("Delete this document analysis?")) remove.mutate(); }}><Trash2 size={14} />Delete</Button></div></div>
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><Link href="/dashboard/documents" className="inline-flex items-center gap-2 text-xs text-muted hover:text-teal"><ArrowLeft size={14} />My documents</Link><Eyebrow className="mt-5">DOCUMENT REVIEW · {humanize(doc.doc_type || "Document")}</Eyebrow><h1 className="mt-2 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{doc.filename}</h1><p className="mt-2 text-xs text-muted">{doc.page_count} pages · {humanize(doc.status)}{doc.ocr_pages?.length ? ` · OCR on pages ${doc.ocr_pages.join(", ")} — verify all extracted values against the scan` : ""}{doc.unreadable_pages?.length ? ` · Text unavailable on pages ${doc.unreadable_pages.join(", ")}` : ""}</p></div><div className="flex flex-wrap gap-2"><Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm("Delete this document analysis?")) remove.mutate(); }}><Trash2 size={14} />Delete</Button></div></div>
 
     <VersionHistory id={id} docType={doc.doc_type} />
 
-    <SourcePreview id={id} filename={doc.filename} available={doc.source_available} />
+    <SourcePreview
+      id={id}
+      filename={doc.filename}
+      available={doc.source_available}
+      title="Original source"
+      subtitle="Private preview available to this account"
+      openLabel="Open source"
+    />
+
+    {reviewPdfUrl && <SourcePreview
+      id={undefined}
+      filename={`${doc.filename.replace(/\.[^/.]+$/, "") || "document-review"}-review.pdf`}
+      available={Boolean(reviewPdfUrl)}
+      previewUrl={reviewPdfUrl}
+      downloadUrl={reviewPdfUrl}
+      title="Review source"
+      subtitle="AI-generated review for this document"
+      openLabel="Open review PDF"
+      showPrint
+      onPrint={printReviewPdf}
+      printLabel="Print review"
+    />}
+
+    <Surface className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <Eyebrow>AI SUMMARY</Eyebrow>
+          <h2 className="mt-1 text-lg font-semibold">Plain-English document summary</h2>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => summary.mutate()} disabled={summary.isPending}>{summary.isPending ? <LoaderCircle className="animate-spin" size={13} /> : <MessageSquareText size={13} />}Refresh summary</Button>
+      </div>
+      {!summaryText && !summary.isPending && <p className="mt-3 text-xs leading-6 text-muted">This summary is generated from the uploaded document only, in simple language, and it clearly notes what is not stated.</p>}
+      {summary.isPending && !summaryText && <p className="mt-3 flex items-center gap-2 text-xs text-muted"><LoaderCircle className="animate-spin" size={14} />Generating the document summary…</p>}
+      {summaryText && <div className="mt-4 whitespace-pre-wrap break-words text-xs leading-6 text-ink">{summaryText}</div>}
+      {summarySources.length > 0 && <div className="mt-4 rounded-lg border border-line bg-panel-raised p-3"><p className="text-[10px] font-semibold uppercase tracking-[.15em] text-muted">Evidence</p><ul className="mt-2 space-y-2 text-[10px] text-muted">{summarySources.map((source, index) => <li key={`${source.page ?? "page"}-${index}`} className="rounded-md border border-line bg-panel px-2 py-1.5">{source.title ?? source.filename ?? "Source"} · {source.page ? `Page ${source.page}` : "Source evidence"}</li>)}</ul></div>}
+    </Surface>
+
+    {summaryText && (() => {
+      const summaryQuality = computeSummaryQuality(summaryText, summarySources);
+      const scoreTone = summaryQuality.score >= 85 ? "text-teal" : summaryQuality.score >= 70 ? "text-amber-700" : "text-red-600";
+      const badgeTone = summaryQuality.score >= 85 ? "border-teal/20 bg-teal/10 text-teal" : summaryQuality.score >= 70 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-red-200 bg-red-50 text-red-700";
+      const barTone = summaryQuality.score >= 85 ? "bg-teal" : summaryQuality.score >= 70 ? "bg-amber-500" : "bg-red-500";
+      return <Surface className="rounded-2xl border border-slate-200 bg-[#f8fafc] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Eyebrow>AI SUMMARY QUALITY</Eyebrow>
+            <h2 className="mt-1 text-lg font-semibold text-slate-900">Review report</h2>
+          </div>
+          <div className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.16em] ${badgeTone}`}>{summaryQuality.label}</div>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[180px_1fr] lg:items-center">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+            <p className="text-[10px] uppercase tracking-[.14em] text-slate-500">Quality score</p>
+            <p className={`mt-2 text-4xl font-semibold ${scoreTone}`}>{summaryQuality.score}</p>
+          </div>
+          <div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${barTone}`} style={{ width: `${summaryQuality.score}%` }} /></div>
+            <p className="mt-3 text-[11px] leading-5 text-slate-600">{summaryQuality.note}</p>
+            <ul className="mt-3 space-y-2 text-[11px] text-slate-600">{summaryQuality.checks.map((check) => <li key={check.label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5"><span>{check.label}</span><span className={check.passed ? "font-semibold text-teal" : "text-slate-400"}>{check.passed ? "Yes" : "No"}</span></li>)}</ul>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-emerald-700">Strengths</p><ul className="mt-2 space-y-2 text-[11px] leading-5 text-emerald-900">{summaryQuality.strengths.map((item) => <li key={item} className="list-disc pl-4">{item}</li>)}</ul></div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-amber-700">Risk warnings</p><ul className="mt-2 space-y-2 text-[11px] leading-5 text-amber-900">{summaryQuality.risks.length > 0 ? summaryQuality.risks.map((item) => <li key={item} className="list-disc pl-4">{item}</li>) : <li className="list-disc pl-4">No major risk warning detected.</li>}</ul></div>
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-700">Suggested actions</p><ul className="mt-2 space-y-2 text-[11px] leading-5 text-sky-900">{summaryQuality.actions.map((item) => <li key={item} className="list-disc pl-4">{item}</li>)}</ul></div>
+        </div>
+      </Surface>;
+    })()}
 
     {(isKyc || isFinancial || isAudit) && <Surface className="border-amber-200 bg-amber-50 p-4 sm:p-5"><p className="text-xs font-semibold text-amber-950">{isKyc ? "Review the original form before relying on these fields." : isFinancial ? "Check the original statement and its reporting units." : "Read audit passages in the context of the full report."}</p><p className="mt-2 text-xs leading-5 text-amber-900">{doc.analysis_note}</p></Surface>}
 
@@ -177,13 +494,17 @@ export function DocumentDetail({ id }: { id: string }) {
 
     {isFinancial && <Surface className="p-5 sm:p-6"><Eyebrow>ARITHMETIC CHECKS</Eyebrow><p className="mt-1 text-xs leading-5 text-muted">A same-page balance-sheet equation check compares the extracted totals as printed. It does not interpret accounting policy or prove the statement is accurate.</p><div className="mt-4 space-y-3">{(doc.financial_checks ?? []).map((check) => <article key={check.id} className="rounded-lg border border-line bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-xs font-semibold">{check.label}</h2><span className={`rounded-full px-2 py-1 text-[10px] ${check.status === "consistent" ? "bg-emerald-50 text-emerald-800" : check.status === "difference" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}>{humanize(check.status)}</span></div><p className="mt-2 text-xs leading-5 text-muted">{check.summary}{check.difference !== undefined ? ` Difference: ${check.difference}` : ""}</p><div className="mt-3 grid gap-2 md:grid-cols-2">{check.sources.map((source, index) => <blockquote key={`${source.field}-${index}`} className="border-l-2 border-blue-300 pl-3 text-[10px] leading-4 text-slate-600"><span className="font-semibold text-slate-800">{humanize(source.field)} · {source.value}{source.page ? ` · page ${source.page}` : ""}</span><span className="mt-1 block">{source.evidence}</span></blockquote>)}</div></article>)}</div></Surface>}
 
-    {!isKyc && <div className={`grid gap-5 ${isLoan ? "xl:grid-cols-2" : "xl:grid-cols-1"}`}>
-      <DocumentAssistantCard id={id} />
-      {isLoan && <Surface className="p-5 sm:p-6"><div className="flex items-center justify-between gap-3"><div><Eyebrow>REPAYMENT CHECK</Eyebrow><h2 className="mt-1 text-sm font-semibold">Reducing-balance estimate</h2></div><Button variant="secondary" size="sm" onClick={() => calculate.mutate()} disabled={calculate.isPending}>{calculate.isPending && <LoaderCircle className="animate-spin" size={14} />}Calculate EMI</Button></div><p className="mt-2 text-xs leading-5 text-muted">Uses the current field values, including saved corrections where present. This estimate does not include every lender fee or rate reset.</p>
+    {isLoan && <Surface className="p-5 sm:p-6"><div className="flex items-center justify-between gap-3"><div><Eyebrow>REPAYMENT CHECK</Eyebrow><h2 className="mt-1 text-sm font-semibold">Reducing-balance estimate</h2></div><Button variant="secondary" size="sm" onClick={() => calculate.mutate()} disabled={calculate.isPending}>{calculate.isPending && <LoaderCircle className="animate-spin" size={14} />}Calculate EMI</Button></div><p className="mt-2 text-xs leading-5 text-muted">Uses the current field values, including saved corrections where present. This estimate does not include every lender fee or rate reset.</p>
         {finance && <div className="mt-5 grid grid-cols-2 gap-3">{[["Calculated EMI", formatCurrency(finance.calculated_emi)], ["Stated EMI", formatCurrency(finance.stated_emi)], ["Total repayment", formatCurrency(finance.total_repayment)], ["Estimated interest", formatCurrency(finance.total_interest)]].map(([label, value]) => <div key={label} className="rounded-lg border border-line bg-slate-50 p-3"><p className="text-[10px] text-muted">{label}</p><p className="mt-2 text-sm font-semibold tabular-nums">{value}</p></div>)}{finance.note && <p className="col-span-2 rounded-lg border border-amber/20 bg-amber/5 p-3 text-xs leading-5 text-amber">{finance.note}</p>}<ul className="col-span-2 space-y-1 text-[10px] leading-4 text-muted">{finance.assumptions.map((assumption) => <li key={assumption}>• {assumption}</li>)}</ul></div>}
       </Surface>}
-    </div>}
 
     {!isKyc && !isFinancial && <Surface className="p-5 sm:p-6"><Eyebrow>{isAudit ? "AUDIT REPORT PASSAGES" : isInsurance ? "POLICY CONDITIONS TO REVIEW" : "CLAUSES TO REVIEW"}</Eyebrow><p className="mt-1 text-xs text-muted">Source passages are shown with their page and a neutral note for context.</p>{clauses.isLoading && <p className="mt-4 text-xs text-muted">Loading passages…</p>}{clauses.isError && <p role="alert" className="mt-4 text-xs text-red-700">{clauses.error.message}</p>}{clauses.data?.length === 0 && <p className="mt-4 text-xs text-muted">No matching passages were detected.</p>}<div className="mt-4 grid gap-3 md:grid-cols-2">{clauses.data?.map((clause, index) => <article key={`${clause.page}-${index}`} className="rounded-lg border border-line bg-slate-50 p-4"><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">{clause.category}</span><span className="text-[10px] text-teal">Page {clause.page}</span></div><p className="mt-3 text-xs leading-5 text-muted">{clause.text}</p><p className="mt-3 border-t border-line pt-3 text-[11px] leading-5 text-amber">Review note: {clause.attention_point}</p></article>)}</div></Surface>}
-  </div>;
+  
+    <Surface id="review-assistant" className="overflow-hidden p-4 sm:p-5">
+      <div className="mb-4 flex items-center gap-2"><MessageSquareText className="text-teal" size={17} /><Eyebrow>AI ASSISTANT</Eyebrow></div>
+      <div className="min-h-[26rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+        {me.isSuccess ? <AssistantPanel userName={me.data?.name ?? "there"} userId={me.data?.id ?? ""} requestedDocumentId={doc.id} /> : <div className="flex min-h-[26rem] items-center justify-center gap-2 text-xs text-muted"><LoaderCircle className="animate-spin" size={14} />Loading document chat…</div>}
+      </div>
+    </Surface>
+</div>;
 }

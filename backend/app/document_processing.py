@@ -1,5 +1,6 @@
 """Pure document parsing pipeline shared by synchronous tests and queued workers."""
 import io
+import json
 import os
 import uuid
 import zipfile
@@ -10,6 +11,21 @@ from fastapi import HTTPException
 from . import audit_reports, docx_import, evidence, extract, financial_statements, insurance, kyc, ocr, spreadsheet_import, statements
 
 MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "100"))
+MAX_TEXT_CHARACTERS = 500_000
+MAX_TEXT_SECTIONS = 100
+MAX_SECTION_CHARACTERS = 4_000
+
+
+def _contract_candidate(filename: str, doc_type: str, pages: list[str]) -> bool:
+    if doc_type in extract.LOAN_DOCUMENT_TYPES | {"insurance_policy"}:
+        return True
+    name = filename.casefold()
+    if any(term in name for term in ("agreement", "contract", "lease", "nda", "employment")):
+        return True
+    opening = " ".join(pages[:3]).casefold()
+    markers = ("this agreement", "the parties", "whereas", "terms and conditions",
+               "governing law", "indemnification", "termination", "effective date")
+    return sum(marker in opening for marker in markers) >= 2
 
 
 def detect_upload_format(data: bytes, filename: str) -> str:
@@ -46,7 +62,51 @@ def detect_upload_format(data: bytes, filename: str) -> str:
         except (OSError, ValueError):
             pass
         raise HTTPException(415, "The file is not a valid DOCX OpenXML container.")
-    raise HTTPException(415, "Upload a PDF, PNG, JPEG, TIFF, DOCX, supported bank statement CSV, or XLSX file.")
+    if extension in {".txt", ".json", ".jsonl"}:
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(415, "Text, JSON, and JSONL uploads must use UTF-8 encoding.") from exc
+        if "\x00" in text:
+            raise HTTPException(415, "The uploaded text file contains binary data.")
+        if extension == ".json":
+            try:
+                json.loads(text)
+            except (json.JSONDecodeError, RecursionError) as exc:
+                raise HTTPException(415, "The uploaded JSON file is not valid JSON.") from exc
+        if extension == ".jsonl":
+            try:
+                for line in text.splitlines():
+                    if line.strip():
+                        json.loads(line)
+            except (json.JSONDecodeError, RecursionError) as exc:
+                raise HTTPException(415, "The uploaded JSONL file contains an invalid JSON line.") from exc
+        return extension[1:]
+    raise HTTPException(415, "Upload a PDF, PNG, JPEG, TIFF, DOCX, TXT, JSON, JSONL, supported bank statement CSV, or XLSX file.")
+
+
+def _text_sections(text: str) -> list[str]:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not normalized:
+        raise HTTPException(422, "No readable text was found in the uploaded file.")
+    if len(normalized) > MAX_TEXT_CHARACTERS:
+        raise HTTPException(413, "The extracted text exceeds the supported 500,000-character limit.")
+    sections = []
+    while normalized:
+        if len(normalized) <= MAX_SECTION_CHARACTERS:
+            chunk, normalized = normalized, ""
+        else:
+            boundary = normalized.rfind("\n", 0, MAX_SECTION_CHARACTERS + 1)
+            if boundary < MAX_SECTION_CHARACTERS // 2:
+                boundary = normalized.rfind(" ", 0, MAX_SECTION_CHARACTERS + 1)
+            if boundary < MAX_SECTION_CHARACTERS // 2:
+                boundary = MAX_SECTION_CHARACTERS
+            chunk, normalized = normalized[:boundary], normalized[boundary:].lstrip()
+        if chunk.strip():
+            sections.append(chunk.strip())
+        if len(sections) > MAX_TEXT_SECTIONS:
+            raise HTTPException(413, f"The text exceeds the supported {MAX_TEXT_SECTIONS}-section analysis limit.")
+    return sections
 
 
 def analyze_document_bytes(data: bytes, filename: str, document_id: str, max_pdf_pages: int | None = None) -> dict:
@@ -67,8 +127,32 @@ def analyze_document_bytes(data: bytes, filename: str, document_id: str, max_pdf
             "loan_category": None, "page_count": 0, "section_count": len(sections),
             "source_locator_type": "section", "source_format": "docx",
             "unreadable_pages": [], "ocr_pages": [], "terms": {}, "clauses": [], "pages": sections,
+            "contract_candidate": _contract_candidate(filename, suggested_doc_type, sections),
             "processing_run_id": processing_run_id, "extraction_schema_version": 1,
             "analysis_note": "Text was extracted from the DOCX body for evidence-based questions. The suggested document type is a rule-based hint from that text and has not been verified. Word page layout is not preserved, so citations use extracted section numbers rather than page numbers. Structured banking fields were not verified; review the original document.",
+        }
+    if upload_format in {"txt", "json", "jsonl"}:
+        try:
+            text = data.decode("utf-8-sig")
+            if upload_format == "json":
+                text = json.dumps(json.loads(text), ensure_ascii=False, indent=2)
+            elif upload_format == "jsonl":
+                text = "\n".join(json.dumps(json.loads(line), ensure_ascii=False)
+                                  for line in text.splitlines() if line.strip())
+            sections = _text_sections(text)
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
+            raise HTTPException(422, "The uploaded text could not be safely decoded or parsed.") from exc
+        suggested_doc_type, suggested_loan_category = extract.classify(sections)
+        return {
+            "id": document_id, "filename": filename, "status": "needs_review", "doc_type": "unknown",
+            "suggested_doc_type": suggested_doc_type if suggested_doc_type != "unknown" else None,
+            "suggested_loan_category": suggested_loan_category,
+            "loan_category": None, "page_count": 0, "section_count": len(sections),
+            "source_locator_type": "section", "source_format": upload_format,
+            "unreadable_pages": [], "ocr_pages": [], "terms": {}, "clauses": [], "pages": sections,
+            "contract_candidate": _contract_candidate(filename, suggested_doc_type, sections),
+            "processing_run_id": processing_run_id, "extraction_schema_version": 1,
+            "analysis_note": "Text was extracted into numbered sections for evidence-based questions. Page layout and structured financial fields are not verified; review findings against the original file.",
         }
     if upload_format in {"xlsx"}:
         try:
@@ -298,6 +382,8 @@ def analyze_document_bytes(data: bytes, filename: str, document_id: str, max_pdf
             raise HTTPException(422, str(exc)[:200]) from exc
         record.setdefault("processing_run_id", processing_run_id)
         record.setdefault("extraction_schema_version", 1)
+        record["contract_candidate"] = _contract_candidate(
+            filename, record.get("doc_type", "unknown"), record.get("pages") or [])
         return record
 
     raise HTTPException(415, "The uploaded document format is not supported.")

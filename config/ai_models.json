@@ -2,12 +2,30 @@
   "schema_version": 1,
   "base_models": [
     {
-      "name": "qwen3:4b-instruct",
+      "name": "qwen3:1.7b",
       "provider": "ollama",
       "task": "conversation",
       "format": "ollama-managed-gguf",
       "license": "Apache-2.0",
-      "size_note": "Q4_K_M published size is approximately 2.5 GB; runtime memory is higher.",
+      "size_note": "Typically fits within a small local RAM footprint and stays around the sub-1.5 GB class depending on quantization.",
+      "evaluation_status": "candidate_not_evaluated_on_this_machine"
+    },
+    {
+      "name": "qwen3:0.6b",
+      "provider": "ollama",
+      "task": "conversation",
+      "format": "ollama-managed-gguf",
+      "license": "Apache-2.0",
+      "size_note": "Very compact fallback for short answers, summaries, and constrained device memory.",
+      "evaluation_status": "candidate_not_evaluated_on_this_machine"
+    },
+    {
+      "name": "llama3.2:1b-instruct",
+      "provider": "ollama",
+      "task": "conversation",
+      "format": "ollama-managed-gguf",
+      "license": "Llama 3.2 community license; review upstream terms before deployment.",
+      "size_note": "Lightweight fallback model designed for low-memory local use under the 1.5 GB target range.",
       "evaluation_status": "candidate_not_evaluated_on_this_machine"
     }
   ],

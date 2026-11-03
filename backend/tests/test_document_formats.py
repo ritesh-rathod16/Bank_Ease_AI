@@ -306,3 +306,39 @@ def test_docx_upload_stores_private_source_and_cites_sections_without_fake_pages
     assert "prepayment fee" in answer["answer"].casefold()
     assert answer["sources"][0]["page"] is None
     assert answer["sources"][0]["location"].startswith("extracted text section 1")
+
+
+@pytest.mark.parametrize(("filename", "content", "media_type", "expected_format"), [
+    ("notes.txt", b"Annual interest rate: 10.5 percent.", "text/plain", "txt"),
+    ("terms.json", b'{"annual_interest_rate":"10.5 percent"}', "application/json", "json"),
+    ("terms.jsonl", b'{"clause":"Annual interest rate: 10.5 percent."}\n', "application/x-ndjson", "jsonl"),
+])
+def test_plain_text_formats_upload_and_are_available_to_conversations(
+        upload_client, filename, content, media_type, expected_format):
+    uploaded = upload_client.post("/api/v1/documents", files={
+        "file": (filename, content, media_type),
+    })
+    assert uploaded.status_code == 201, uploaded.text
+    document = uploaded.json()
+    assert document["status"] == "needs_review"
+    assert document["doc_type"] == "unknown"
+    assert document["source_format"] == expected_format
+    assert document["source_locator_type"] == "section"
+
+    conversation = upload_client.post("/api/v1/conversations", json={"document_ids": [document["id"]]})
+    assert conversation.status_code == 201, conversation.text
+
+    answer = upload_client.post(f"/api/v1/documents/{document['id']}/ask", json={
+        "question": "What annual interest rate is stated?",
+    })
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["sources"][0]["page"] is None
+    assert answer.json()["sources"][0]["section"] == 1
+
+
+def test_json_upload_rejects_malformed_content(upload_client):
+    response = upload_client.post("/api/v1/documents", files={
+        "file": ("terms.json", b'{"annual_interest_rate":', "application/json"),
+    })
+    assert response.status_code == 415
+    assert "not valid JSON" in response.text

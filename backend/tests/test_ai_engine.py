@@ -32,6 +32,29 @@ def test_selected_document_context_is_never_hosted_without_two_explicit_permissi
     assert ai_engine._resolve_provider("hosted", True, True, True) == ("huggingface", "org/model")
 
 
+def test_local_model_fallback_uses_smaller_installed_option(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:1.7b")
+    monkeypatch.setenv("OLLAMA_FALLBACK_MODELS", "qwen3:0.6b,llama3.2:1b-instruct")
+    monkeypatch.setattr(ai_engine, "_ollama_models", lambda timeout=2.0: (True, [{"name": "qwen3:1.7b"}, {"name": "qwen3:0.6b"}]))
+
+    assert ai_engine._local_model_priority() == ["qwen3:1.7b", "qwen3:0.6b", "llama3.2:1b-instruct"]
+    assert ai_engine._resolve_provider("local", False, False, False) == ("ollama", "qwen3:1.7b")
+
+    calls = []
+
+    def fake_generate(provider, model, messages):
+        calls.append(model)
+        if model == "qwen3:1.7b":
+            raise ai_engine.EngineError("The AI model reached its response limit. Try a shorter question or increase AI_MAX_OUTPUT_TOKENS.", 502)
+        return "Fallback answer"
+
+    monkeypatch.setattr(ai_engine, "_generate", fake_generate)
+    monkeypatch.setattr(ai_engine, "_web_search", lambda question: ([], None))
+    result = ai_engine.answer("Summarize this", [], [], mode="local")
+    assert result["model"] == "qwen3:0.6b"
+    assert calls == ["qwen3:1.7b", "qwen3:0.6b"]
+
+
 def test_unconfigured_ollama_and_missing_model_are_reported_without_pull(monkeypatch):
     monkeypatch.delenv("OLLAMA_MODEL", raising=False)
     monkeypatch.setattr(ai_engine, "_ollama_models", lambda timeout=2.0: (True, [{"name": "other-model"}]))
@@ -54,18 +77,16 @@ def test_ollama_unavailable_and_invalid_model_return_actionable_errors(monkeypat
         ai_engine._resolve_provider("local", False, False, False)
 
 
-def test_selected_document_without_retrieved_passages_still_gets_general_knowledge_prompt():
+def test_selected_document_without_retrieved_passages_still_uses_document_first_prompt():
     messages = ai_engine._messages("What is inflation?", [], [], [], False,
                                    document_context_selected=True,
                                    document_filenames=["loan-agreement.pdf"],
                                    document_types=["loan_agreement"])
     prompt = messages[-1]["content"]
-    assert "general financial knowledge" in prompt
     assert "loan-agreement.pdf" in prompt
-    assert "loan agreement" in prompt
-    assert "floating-rate term" in prompt
-    assert "inflation alone does not change a loan term" in prompt
-    assert "Do not invent document clauses or citations" in prompt
+    assert "Do not say the document contains no information simply because retrieval failed" in prompt
+    assert "Not specified in the available document text." in prompt
+    assert "Do not invent clauses, page numbers, or citations" in prompt
 
 
 @pytest.mark.parametrize(

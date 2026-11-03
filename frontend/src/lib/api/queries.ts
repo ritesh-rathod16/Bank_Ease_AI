@@ -1,5 +1,6 @@
 import { apiFetch, apiStream, jsonRequest } from "@/lib/api/client";
-import type { AiStatus, AskResult, CompareRow, ComparisonHistoryItem, ConversationMessage, ConversationMessages, ConversationSummary, DashboardSummary, DocumentProcessingStatus, DocumentRecord, DocumentSummary, DocumentVersionHistory, FinanceSummary, FinancialStatementComparisonResult, ReviewTask, SavedComparison, SearchResult, Session, StatementComparisonResult, StatementTransactionPage, TransactionCorrectionRequest, StatementTransaction, User } from "@/types/api";
+import { normalizeConversationTitle } from "@/lib/conversation-title";
+import type { AiStatus, AskResult, CompareRow, ComparisonHistoryItem, ConversationMessage, ConversationMessages, ConversationSummary, DashboardSummary, DocumentProcessingStatus, DocumentRecord, DocumentSummary, DocumentVersionHistory, FinanceSummary, FinancialStatementComparisonResult, ReviewTask, SavedComparison, SearchResult, Session, StatementComparisonResult, StatementTransactionPage, TransactionCorrectionRequest, StatementTransaction, User, ContractAnalysis, ContractClause, ContractRisk, ContractComplianceCheck, ContractObligation, ContractOverview, ContractFinancialTerm, ContractSummary, ContractCompareResult, ContractRiskSettings } from "@/types/api";
 
 export const api = {
   me: async () => (await apiFetch<{ user: User }>("/api/v1/auth/me")).user,
@@ -32,15 +33,34 @@ export const api = {
     form.append("supersedes_document_id", supersedesDocumentId);
     return apiFetch<DocumentSummary>("/api/v1/documents", { method: "POST", body: form });
   },
+  renameDocument: (id: string, filename: string) => apiFetch<DocumentSummary>(`/api/v1/documents/${encodeURIComponent(id)}`, jsonRequest("PATCH", { filename })),
   removeDocument: (id: string) => apiFetch<void>(`/api/v1/documents/${encodeURIComponent(id)}`, { method: "DELETE" }),
   ask: (id: string, question: string) => apiFetch<AskResult>(`/api/v1/documents/${encodeURIComponent(id)}/ask`, jsonRequest("POST", { question })),
-  conversations: () => apiFetch<{ conversations: ConversationSummary[] }>("/api/v1/conversations"),
+  conversations: () => apiFetch<{ conversations: ConversationSummary[] }>("/api/v1/conversations?limit=100"),
+  updateConversation: (id: string, change: { title?: string; is_pinned?: boolean; document_ids?: string[] }) => apiFetch<ConversationSummary>(`/api/v1/conversations/${encodeURIComponent(id)}`, jsonRequest("PATCH", change)),
   aiStatus: () => apiFetch<AiStatus>("/api/v1/ai/status"),
   conversationMessages: (id: string) => apiFetch<ConversationMessages>(`/api/v1/conversations/${encodeURIComponent(id)}/messages`),
-  createConversation: (document_ids: string[], title: string, mode = "local") => apiFetch<ConversationSummary>("/api/v1/conversations", jsonRequest("POST", { document_ids, title, mode })),
-  sendConversationMessageStream: (id: string, question: string, requestId: string, options: { mode: string; model?: string; allow_hosted: boolean; allow_hosted_documents: boolean; web_research: boolean }, onDelta: (text: string) => void) => apiStream<{ conversation_id: string; answer: AskResult; messages: ConversationMessage[] }>(`/api/v1/conversations/${encodeURIComponent(id)}/messages/stream`, { question, request_id: requestId, ...options }, onDelta),
+  createConversation: (document_ids: string[], title: string, mode = "local") => apiFetch<ConversationSummary>("/api/v1/conversations", jsonRequest("POST", { document_ids, title: normalizeConversationTitle(title), mode })),
+  sendConversationMessageStream: (id: string, question: string, requestId: string, options: { mode: string; model?: string; allow_hosted: boolean; allow_hosted_documents: boolean; web_research: boolean }, onDelta: (text: string) => void, signal?: AbortSignal) => apiStream<{ conversation_id: string; answer: AskResult; messages: ConversationMessage[] }>(`/api/v1/conversations/${encodeURIComponent(id)}/messages/stream`, { question, request_id: requestId, ...options }, onDelta, signal),
   deleteConversation: (id: string) => apiFetch<void>(`/api/v1/conversations/${encodeURIComponent(id)}`, { method: "DELETE" }),
   calculate: (id: string, values?: { principal?: number; annual_rate?: number; months?: number }) => apiFetch<FinanceSummary>(`/api/v1/documents/${encodeURIComponent(id)}/calculate-emi`, jsonRequest("POST", values)),
+  contractOverview: () => apiFetch<ContractOverview>("/api/v1/contracts/overview"),
+  contracts: () => apiFetch<{ contracts: ContractSummary[] }>("/api/v1/contracts"),
+  contractAnalysis: (id: string) => apiFetch<ContractAnalysis>(`/api/v1/contracts/${encodeURIComponent(id)}/analysis`),
+  analyzeContract: (id: string, force = false) => apiFetch<{ status: string; progress: number; document_id: string; already_analyzed?: boolean }>(`/api/v1/contracts/${encodeURIComponent(id)}/analysis${force ? "?force=true" : ""}`, { method: "POST" }),
+  contractClauses: (documentId?: string) => apiFetch<{ clauses: ContractClause[]; contracts_analyzed: number }>(`/api/v1/contracts/clauses${documentId ? `?document_id=${encodeURIComponent(documentId)}` : ""}`),
+  contractRisks: (documentId?: string) => apiFetch<{ risks: ContractRisk[] }>(`/api/v1/contracts/risks${documentId ? `?document_id=${encodeURIComponent(documentId)}` : ""}`),
+  contractCompliance: (documentId?: string) => apiFetch<{ checks: ContractComplianceCheck[]; note: string }>(`/api/v1/contracts/compliance${documentId ? `?document_id=${encodeURIComponent(documentId)}` : ""}`),
+  contractObligations: (documentId?: string) => apiFetch<{ contractual_obligations: ContractObligation[]; user_reminders: ContractObligation[] }>(`/api/v1/contracts/obligations${documentId ? `?document_id=${encodeURIComponent(documentId)}` : ""}`),
+  contractFinancial: (documentId?: string) => apiFetch<{ financial_analysis: Array<{ document_id: string; filename: string; terms: ContractFinancialTerm[]; annualized_recurring_total: string | null; note: string }> }>(`/api/v1/contracts/financial${documentId ? `?document_id=${encodeURIComponent(documentId)}` : ""}`),
+  contractReports: () => apiFetch<{ reports: Array<{ document_id: string; filename: string; status: string; analyzed_at?: string; available_reports: string[] }> }>("/api/v1/contracts/reports"),
+  compareContracts: (document_ids: string[]) => apiFetch<ContractCompareResult>("/api/v1/contracts/compare", jsonRequest("POST", { document_ids })),
+  compareContractsReport: (document_ids: string[]) => apiFetch<Blob>("/api/v1/contracts/compare/report", jsonRequest("POST", { document_ids })),
+  contractSettings: () => apiFetch<ContractRiskSettings>("/api/v1/contracts/settings"),
+  saveContractSettings: (settings: ContractRiskSettings) => apiFetch<ContractRiskSettings>("/api/v1/contracts/settings", jsonRequest("PUT", settings)),
+  createContractReminder: (documentId: string, input: { title: string; due_date: string; notes: string }) => apiFetch<ContractObligation>(`/api/v1/contracts/${encodeURIComponent(documentId)}/reminders`, jsonRequest("POST", input)),
+  updateContractReminder: (documentId: string, reminderId: string, status: "open" | "completed") => apiFetch<ContractObligation>(`/api/v1/contracts/${encodeURIComponent(documentId)}/reminders/${encodeURIComponent(reminderId)}`, jsonRequest("PATCH", { status })),
+  contractReport: (id: string, kind: "executive" | "detailed" | "risks" | "clauses" | "compliance") => apiFetch<Blob>(`/api/v1/contracts/${encodeURIComponent(id)}/report?kind=${kind}`),
   compare: (a: string, b: string, overrides_a?: Record<string, string>, overrides_b?: Record<string, string>) => apiFetch<{ a: string; b: string; rows: CompareRow[]; comparison_id: string; created_at: string }>("/documents/compare", jsonRequest("POST", { document_id_a: a, document_id_b: b, overrides_a, overrides_b })),
   compareReport: (a: string, b: string, overrides_a?: Record<string, string>, overrides_b?: Record<string, string>) => apiFetch<Blob>("/documents/compare/report", jsonRequest("POST", { document_id_a: a, document_id_b: b, overrides_a, overrides_b })),
   compareStatements: (a: string, b: string) => apiFetch<StatementComparisonResult>("/api/v1/comparisons/statements", jsonRequest("POST", { document_id_a: a, document_id_b: b })),

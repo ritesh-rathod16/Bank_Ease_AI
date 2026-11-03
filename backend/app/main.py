@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
+from urllib.parse import quote
 import pymupdf
 from pymongo.errors import DuplicateKeyError
 from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Path as APIPath, Query, Request, Response, UploadFile
@@ -15,7 +16,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from . import auth, compare as cmp, conversations as conversation_routes, document_processing, extract, financial, financial_statements, ocr, qa, retention, reviews, statement_compare, statements, store
+from . import auth, compare as cmp, conversations as conversation_routes, contracts as contract_routes, document_processing, extract, financial, financial_statements, ocr, qa, retention, reviews, statement_compare, statements, store
 from .config import load_settings
 from .database import connect as connect_mongodb
 
@@ -66,6 +67,7 @@ app.include_router(auth.router)
 app.include_router(reviews.router)
 app.include_router(conversation_routes.router)
 app.include_router(conversation_routes.ai_router)
+app.include_router(contract_routes.router)
 
 class Ask(BaseModel):
     question: str = Field(min_length=3, max_length=500)
@@ -88,6 +90,9 @@ class TransactionCorrectionIn(BaseModel):
     balance_minor: int | None = Field(default=None, strict=True)
     expected_revision: int = Field(ge=0, strict=True)
     reason: str = Field(default="", max_length=500)
+
+class DocumentRenameIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=120)
 
 def get(i, owner_id):
     try: return store.load(i, owner_id)
@@ -268,13 +273,21 @@ def health(request: Request):
             "document_worker": "running" if getattr(request.app.state, "document_worker_thread", None)
             and request.app.state.document_worker_thread.is_alive() else "disabled"}
 
+def _document_workspace_summary(record, fields):
+    output = {key: record.get(key) for key in fields}
+    source_file = record.get("source_file") or {}
+    source_format = record.get("source_format") or source_file.get("extension")
+    output["source_format"] = "json" if source_format == "jsondata" else source_format
+    output["source_available"] = bool(source_file)
+    return output
+
 @app.get("/documents")
 @app.get("/api/v1/documents")
 def list_documents(user=Depends(auth.get_current_user)):
     records = store.list_owner(user["id"])
     records.sort(key=lambda item: item.get("created_at", ""), reverse=True)
-    fields = ("id", "filename", "status", "error", "analysis_note", "doc_type", "suggested_doc_type", "suggested_loan_category", "loan_category", "page_count", "ocr_pages", "transaction_count", "currency", "reconciliation_status", "version_group_id", "version_number", "previous_version_id", "created_at", "updated_at")
-    return {"documents": [{key: item.get(key) for key in fields} for item in records]}
+    fields = ("id", "filename", "status", "error", "analysis_note", "doc_type", "suggested_doc_type", "suggested_loan_category", "source_format", "source_locator_type", "section_count", "loan_category", "page_count", "ocr_pages", "transaction_count", "currency", "reconciliation_status", "version_group_id", "version_number", "previous_version_id", "created_at", "updated_at")
+    return {"documents": [_document_workspace_summary(item, fields) for item in records]}
 
 @app.get("/api/v1/dashboard/summary")
 def dashboard_summary(request: Request, user=Depends(auth.get_current_user)):
@@ -319,7 +332,7 @@ def dashboard_summary(request: Request, user=Depends(auth.get_current_user)):
         tasks = repo.find_many("review_tasks", {"assigned_to": user["id"]})
     open_reviews = sum(task.get("status") not in {"approved", "rejected"} for task in tasks)
     summary_fields = ("id", "filename", "status", "error", "analysis_note", "doc_type", "suggested_doc_type", "suggested_loan_category", "source_format", "source_locator_type", "section_count", "loan_category", "page_count", "transaction_count", "currency", "reconciliation_status", "created_at", "updated_at")
-    docs = [{field: item.get(field) for field in summary_fields} for item in records]
+    docs = [_document_workspace_summary(item, summary_fields) for item in records]
     return {"documents": docs, "documents_analyzed": sum(item.get("status") == "completed" for item in records),
             "review_count": open_reviews + term_reviews + statement_signals + financial_signals + audit_signals, "open_review_tasks": open_reviews,
             "term_review_count": term_reviews, "statement_signals": statement_signals,
@@ -380,7 +393,9 @@ async def analyze(request: Request, response: Response, file: UploadFile = File(
     now = datetime.now(timezone.utc).isoformat()
     rec.setdefault("created_at", now)
     rec["updated_at"] = now
-    extension = upload_format
+    # ``json`` is reserved for local record files in store.py, so user JSON sources
+    # use a distinct private-storage extension while retaining their original name.
+    extension = "jsondata" if upload_format == "json" else upload_format
     source_file = store.save_source_file(did, extension, data)
     rec["source_file"] = source_file
     try:
@@ -479,20 +494,61 @@ def document_versions(i: str, user=Depends(auth.get_current_user)):
 
 @app.get("/documents/{i}/preview")
 @app.get("/api/v1/documents/{i}/preview")
-def preview(i: str, user=Depends(auth.get_current_user)):
+def preview(i: str, download: bool = False, user=Depends(auth.get_current_user)):
+    record = get(i, user["id"])
     try:
         path, media_type = store.source_path(i, user["id"])
     except KeyError as exc:
         raise HTTPException(404, "Document not found") from exc
     except FileNotFoundError as exc:
         raise HTTPException(404, "Original source file is unavailable") from exc
-    return FileResponse(path, media_type=media_type, headers={
-        "Content-Disposition": "inline" if media_type == "application/pdf" or media_type.startswith("image/") else "attachment",
+    disposition = "attachment" if download or not (media_type == "application/pdf" or media_type.startswith("image/")) else "inline"
+    headers = {
+        "Content-Disposition": disposition,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
         "Cross-Origin-Resource-Policy": "same-origin",
-    })
+    }
+    if download:
+        safe_filename = os.path.basename(record.get("filename") or path.name)
+        headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(safe_filename, safe='')}"
+    return FileResponse(path, media_type=media_type, headers=headers)
+
+@app.patch("/api/v1/documents/{i}", dependencies=[Depends(auth.require_csrf)])
+def rename_document(i: str, data: DocumentRenameIn, user=Depends(auth.get_current_user)):
+    record = get(i, user["id"])
+    requested = data.filename.strip()
+    if not requested or any(ord(character) < 32 or ord(character) == 127 for character in requested):
+        raise HTTPException(422, "Enter a valid document name.")
+    if "/" in requested or "\\" in requested:
+        raise HTTPException(422, "Document names cannot contain folder paths.")
+
+    source_file = record.get("source_file") or {}
+    extension = source_file.get("extension") or str(record.get("source_format") or record.get("filename", "")).rsplit(".", 1)[-1]
+    extension = "json" if extension == "jsondata" else extension
+    if not extension or not re.fullmatch(r"[a-zA-Z0-9]{1,10}", extension):
+        raise HTTPException(409, "This document's file type cannot be renamed safely.")
+    current_extension = record.get("filename", "").rsplit(".", 1)[-1] if "." in record.get("filename", "") else ""
+    if "." in requested:
+        requested_extension = requested.rsplit(".", 1)[-1]
+        if requested_extension.casefold() != extension.casefold() and requested_extension.casefold() != current_extension.casefold():
+            raise HTTPException(422, "Keep the original file extension when renaming a document.")
+    else:
+        requested = f"{requested}.{extension}"
+    if len(requested) > 120:
+        raise HTTPException(422, "Document names must be 120 characters or fewer, including the file extension.")
+    if requested in {".", ".."} or requested.startswith("."):
+        raise HTTPException(422, "Choose a document name that starts with a letter or number.")
+
+    record["filename"] = requested
+    record["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    try:
+        store.save(record, user["id"])
+    except KeyError as exc:
+        raise HTTPException(404, "Document not found") from exc
+    output_fields = ("id", "filename", "status", "error", "analysis_note", "doc_type", "suggested_doc_type", "suggested_loan_category", "source_format", "source_locator_type", "section_count", "loan_category", "page_count", "ocr_pages", "transaction_count", "currency", "reconciliation_status", "version_group_id", "version_number", "previous_version_id", "created_at", "updated_at")
+    return _document_workspace_summary(record, output_fields)
 
 @app.get("/documents/{i}/transactions")
 @app.get("/api/v1/documents/{i}/transactions")
