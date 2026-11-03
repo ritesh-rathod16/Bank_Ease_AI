@@ -37,6 +37,43 @@ Banking document intelligence with deterministic extraction and financial checks
   <img src="docs/assets/dashboard-preview.svg" alt="BankEase AI dashboard preview" width="100%" />
 </p>
 
+## Built for real financial review workflows
+
+BankEase AI is designed for teams who need faster document review without losing trust, traceability, or evidence. The product is shaped around financial operations: upload, extract, review, question, and summarize the document with clear source-backed reasoning.
+
+### Feature matrix
+
+| Capability | What it does | Why teams care |
+|---|---|---|
+| Multi-format ingestion | Accepts PDFs, DOCX, CSV, XLSX, and scanned document images | Reduces friction in real-world financial operations |
+| Evidence-first extraction | Pulls key clauses, dates, rates, fees, and obligations from the original source | Keeps review grounded in the document rather than generic AI hallucination |
+| AI summaries | Produces plain-language summaries in the review flow | Makes dense finance docs easier for teams and customers to understand |
+| Local-first AI | Runs with lightweight Ollama models and fallback support | Keeps setup simple and cost-efficient for local/private environments |
+| Cited Q&A | Answers questions with document-backed context | Improves trust and auditability |
+| Review workflow | Supports structured review findings and document-level analysis | Fits underwriting, operations, and compliance processes |
+
+### Demo / walkthrough layout
+
+<p align="center">
+  <a href="docs/assets/dashboard-preview.svg">
+    <img src="docs/assets/dashboard-preview.svg" alt="BankEase AI demo preview" width="48%" />
+  </a>
+  <a href="docs/assets/github-banner.svg">
+    <img src="docs/assets/github-banner.svg" alt="BankEase AI landing banner" width="48%" />
+  </a>
+</p>
+
+> A demo GIF or short product walkthrough can be dropped here for a more polished GitHub launch experience.
+
+## Join the project
+
+BankEase AI is built for contributors who care about real-world AI, fintech workflows, and high-trust software. Whether you are improving document intelligence, sharpening the UX, or making the local AI stack easier to deploy, your contribution can move the project forward.
+
+- Star the repo to support the project
+- Open an issue for a product improvement or bug
+- Contribute a fix, UI enhancement, or AI pipeline improvement
+- Share feedback on local setup, UX, or review quality
+
 ## Community and project health
 
 - [License](LICENSE)
