@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/ritesh-rathod16/Bank_Ease_AI/security
+    about: Please use the private security reporting process for vulnerabilities.
+  - name: Questions and discussion
+    url: https://github.com/ritesh-rathod16/Bank_Ease_AI/discussions
+    about: Ask questions, share ideas, or discuss project direction.
