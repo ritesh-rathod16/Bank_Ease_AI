@@ -9,7 +9,8 @@ Copy `.env.example` to `.env`, then configure the local settings if needed:
 ```dotenv
 AI_PROVIDER=local
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen3:4b-instruct
+OLLAMA_MODEL=qwen3:1.7b
+OLLAMA_FALLBACK_MODELS=qwen3:0.6b,llama3.2:1b-instruct
 OLLAMA_NUM_CTX=4096
 ```
 

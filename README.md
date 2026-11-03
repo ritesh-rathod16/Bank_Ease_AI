@@ -1,6 +1,75 @@
 # BankEase AI
 Banking document intelligence with deterministic extraction and financial checks. No API key or GPU is required. Supported loan PDFs provide evidence-backed terms, clause review, cited extractive Q&A, and EMI calculations. DOCX files support bounded text extraction and Q&A cited by extracted section; Word pagination and structured financial fields are not inferred. Insurance policy schedules and certificates extract a limited set of explicitly labeled fields and clause passages; the app does not verify active coverage or claim eligibility. OCR uses PyMuPDF's Tesseract integration when a system Tesseract installation and matching language data are available. Supported bank statement CSV/XLSX files, selectable-text PDF tables, and recognized table layouts on fully scanned PDFs/images support transaction review, balance reconciliation, and duplicate candidates. XLSX statements retain worksheet and source-row evidence. OCR-derived statements remain marked for human review. Missing or uncertain values are not silently guessed.
 
+## Windows setup (Ollama + local AI + app requirements)
+
+Install the required tools first:
+
+- Python 3.11+ (or 3.10+ if needed by your environment)
+- Node.js LTS 20+
+- Git
+- Ollama for Windows
+
+### 1) Install Ollama
+You can install it from the official Windows installer or with winget:
+
+```powershell
+winget install --id=Ollama.Ollama -e
+```
+
+Then open a new terminal and start the Ollama service:
+
+```powershell
+ollama serve
+```
+
+### 2) Download the recommended local models
+This project is configured for local-first AI and expects the model to be downloaded separately. The default lightweight setup is:
+
+```powershell
+ollama pull qwen3:1.7b
+ollama pull qwen3:0.6b
+ollama pull llama3.2:1b-instruct
+```
+
+If you want a single main model only:
+
+```powershell
+ollama pull qwen3:1.7b
+```
+
+### 3) Create your local environment file
+Copy the example env file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then make sure your `.env` contains the local AI settings:
+
+```env
+AI_PROVIDER=local
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3:1.7b
+OLLAMA_FALLBACK_MODELS=qwen3:0.6b,llama3.2:1b-instruct
+```
+
+### 4) Install project dependencies
+From the repo root:
+
+```powershell
+npm install
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### 5) Run the app
+```powershell
+npm run dev:all
+```
+
+This starts the FastAPI backend on `http://localhost:8000` and the Next.js frontend on `http://localhost:3000`.
+
 ## Quick start
 ```bash
 npm install
