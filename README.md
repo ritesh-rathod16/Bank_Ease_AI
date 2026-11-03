@@ -11,9 +11,64 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-7C3AED?logo=ollama&logoColor=white)](https://ollama.com/)
 
+BankEase AI turns complex financial documents into clear, reviewable, evidence-backed decisions for modern lending and underwriting workflows.
+
 <p align="center">
   <img src="docs/assets/github-banner.svg" alt="BankEase AI banner" width="100%" />
 </p>
+
+<p align="center">
+  <img alt="Built for fintech teams" src="https://img.shields.io/badge/Built%20for-Fintech%20Ops-0F172A?style=for-the-badge" />
+  <img alt="Local-first AI" src="https://img.shields.io/badge/Mode-Local%20first-22C55E?style=for-the-badge" />
+  <img alt="Paperless review" src="https://img.shields.io/badge/Workflow-Evidence%20backed-4F46E5?style=for-the-badge" />
+  <img alt="Formats supported" src="https://img.shields.io/badge/Formats-PDF%20DOCX%20CSV%20XLSX-64748B?style=for-the-badge" />
+</p>
+
+## Why contributors should care
+
+This project sits at the intersection of practical AI, financial operations, and trustworthy automation. It is designed to help teams review dense documents faster without losing traceability or turning AI into a black box.
+
+Contributors can improve:
+
+- document extraction quality and field reliability
+- stronger evidence-backed summaries
+- UX for underwriting and review workflows
+- local AI model fallback and deployment simplicity
+- product workflows that handle real financial operations at scale
+
+## Screenshot + metrics strip
+
+<p align="center">
+  <img src="docs/assets/dashboard-preview.svg" alt="BankEase AI dashboard preview" width="100%" />
+</p>
+
+<div align="center">
+
+| Metric | Value |
+|---|---:|
+| Document formats | PDF, DOCX, CSV, XLSX, scanned images |
+| AI mode | Local-first with Ollama support |
+| Review model | Evidence-first, source-backed summary |
+| Primary use case | Lender / underwriter / document review workflows |
+
+</div>
+
+## Roadmap highlights
+
+- Evidence-first extraction and review improvements
+- Stronger local AI model fallback and lightweight deployment
+- Better dashboard UX for reviewers and analysts
+- More automated financial checks and flags
+- Broader document coverage for statements, policies, and disclosures
+- More trustworthy AI summaries for operations and underwriting teams
+
+## Built for
+
+- Fintech teams and lending ops
+- Underwriting and risk review teams
+- Document-heavy operations workflows
+- Product teams building trustworthy AI review tools
+- Local or private deployment environments
 
 ## Why this project matters
 
