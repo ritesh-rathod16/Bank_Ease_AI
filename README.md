@@ -1,9 +1,15 @@
 # BankEase AI
 
+[![GitHub Repo stars](https://img.shields.io/github/stars/ritesh-rathod16/Bank_Ease_AI?style=for-the-badge)](https://github.com/ritesh-rathod16/Bank_Ease_AI/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/ritesh-rathod16/Bank_Ease_AI?style=for-the-badge)](https://github.com/ritesh-rathod16/Bank_Ease_AI/network/members)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Contributors Welcome](https://img.shields.io/badge/Contributors-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-5E5E5E.svg)](CODE_OF_CONDUCT.md)
 [![Security](https://img.shields.io/badge/Security-Private%20Reporting-red.svg)](SECURITY.md)
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-7C3AED?logo=ollama&logoColor=white)](https://ollama.com/)
 
 Banking document intelligence with deterministic extraction and financial checks. No API key or GPU is required. Supported loan PDFs provide evidence-backed terms, clause review, cited extractive Q&A, and EMI calculations. DOCX files support bounded text extraction and Q&A cited by extracted section; Word pagination and structured financial fields are not inferred. Insurance policy schedules and certificates extract a limited set of explicitly labeled fields and clause passages; the app does not verify active coverage or claim eligibility. OCR uses PyMuPDF's Tesseract integration when a system Tesseract installation and matching language data are available. Supported bank statement CSV/XLSX files, selectable-text PDF tables, and recognized table layouts on fully scanned PDFs/images support transaction review, balance reconciliation, and duplicate candidates. XLSX statements retain worksheet and source-row evidence. OCR-derived statements remain marked for human review. Missing or uncertain values are not silently guessed.
 
@@ -13,6 +19,7 @@ Banking document intelligence with deterministic extraction and financial checks
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Contributing Guide](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
+- [Documentation hub](docs/README.md)
 - [Issue templates](.github/ISSUE_TEMPLATE)
 - [Pull request template](.github/PULL_REQUEST_TEMPLATE.md)
 
