@@ -11,7 +11,31 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-7C3AED?logo=ollama&logoColor=white)](https://ollama.com/)
 
+<p align="center">
+  <img src="docs/assets/github-banner.svg" alt="BankEase AI banner" width="100%" />
+</p>
+
+## Why this project matters
+
+BankEase AI is a local-first financial document review platform for modern lending, underwriting, and document analysis workflows. Instead of forcing teams to rely on opaque black-box AI, the project focuses on evidence-backed extraction, PDF and document review, cited answers, and compliance-friendly summarization.
+
+This matters because financial institutions, fintech teams, and operations teams need insights they can trust. BankEase AI helps turn dense financial documents into clear summaries, extracted fields, review findings, and AI-assisted analysis without forcing a paid API or GPU setup.
+
+## Product highlights
+
+- Evidence-backed document review for PDFs, DOCX, CSV, XLSX, and scanned financial documents
+- AI summaries that keep the focus on the actual source document
+- Local-first setup with lightweight Ollama model support and fallback options
+- Reusable backend + frontend architecture for product teams and contributors
+- Built for clarity, reviewability, and better financial decision support
+
 Banking document intelligence with deterministic extraction and financial checks. No API key or GPU is required. Supported loan PDFs provide evidence-backed terms, clause review, cited extractive Q&A, and EMI calculations. DOCX files support bounded text extraction and Q&A cited by extracted section; Word pagination and structured financial fields are not inferred. Insurance policy schedules and certificates extract a limited set of explicitly labeled fields and clause passages; the app does not verify active coverage or claim eligibility. OCR uses PyMuPDF's Tesseract integration when a system Tesseract installation and matching language data are available. Supported bank statement CSV/XLSX files, selectable-text PDF tables, and recognized table layouts on fully scanned PDFs/images support transaction review, balance reconciliation, and duplicate candidates. XLSX statements retain worksheet and source-row evidence. OCR-derived statements remain marked for human review. Missing or uncertain values are not silently guessed.
+
+## Product preview
+
+<p align="center">
+  <img src="docs/assets/dashboard-preview.svg" alt="BankEase AI dashboard preview" width="100%" />
+</p>
 
 ## Community and project health
 
@@ -22,6 +46,7 @@ Banking document intelligence with deterministic extraction and financial checks
 - [Documentation hub](docs/README.md)
 - [Issue templates](.github/ISSUE_TEMPLATE)
 - [Pull request template](.github/PULL_REQUEST_TEMPLATE.md)
+- [Changelog](CHANGELOG.md)
 
 ## Windows setup (Ollama + local AI + app requirements)
 

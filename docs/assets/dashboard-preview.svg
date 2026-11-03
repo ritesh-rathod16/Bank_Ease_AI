@@ -1,0 +1,59 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgp" x1="0" y1="0" x2="1600" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EEF2FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="980" rx="24" fill="url(#bgp)"/>
+  <circle cx="180" cy="120" r="170" stroke="#E2E8F0" stroke-width="2"/>
+  <circle cx="1450" cy="860" r="180" stroke="#E2E8F0" stroke-width="2"/>
+
+  <rect x="120" y="90" width="1360" height="780" rx="28" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="120" y="90" width="1360" height="82" rx="28" fill="#FFFFFF"/>
+  <circle cx="170" cy="131" r="16" fill="#10B981"/>
+  <circle cx="215" cy="131" r="16" fill="#4F46E5"/>
+  <circle cx="260" cy="131" r="16" fill="#F59E0B"/>
+  <rect x="350" y="113" width="240" height="18" rx="9" fill="#0F172A"/>
+  <rect x="1030" y="111" width="120" height="18" rx="9" fill="#64748B"/>
+  <rect x="1165" y="100" width="170" height="40" rx="18" fill="#4F46E5"/>
+
+  <rect x="120" y="172" width="250" height="698" rx="0" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <rect x="168" y="228" width="150" height="18" rx="9" fill="#172033"/>
+  <rect x="168" y="268" width="120" height="14" rx="7" fill="#64748B"/>
+  <rect x="168" y="328" width="150" height="44" rx="16" fill="#E0F2FE"/>
+  <rect x="168" y="398" width="150" height="44" rx="16" fill="#ECFDF5"/>
+  <rect x="168" y="468" width="150" height="44" rx="16" fill="#EEF2FF"/>
+
+  <rect x="390" y="200" width="1040" height="250" rx="22" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="438" y="252" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" fill="#172033">AI Review Dashboard</text>
+  <rect x="438" y="292" width="150" height="18" rx="9" fill="#4F46E5"/>
+  <rect x="438" y="334" width="420" height="16" rx="8" fill="#CBD5E1"/>
+  <rect x="438" y="364" width="380" height="16" rx="8" fill="#CBD5E1"/>
+  <rect x="438" y="394" width="330" height="16" rx="8" fill="#CBD5E1"/>
+
+  <g transform="translate(980 250)">
+    <rect x="0" y="0" width="360" height="170" rx="22" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <text x="30" y="48" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#172033">Summary</text>
+    <rect x="30" y="72" width="180" height="14" rx="7" fill="#CBD5E1"/>
+    <rect x="30" y="99" width="220" height="14" rx="7" fill="#CBD5E1"/>
+    <rect x="30" y="126" width="200" height="14" rx="7" fill="#CBD5E1"/>
+    <rect x="30" y="150" width="110" height="12" rx="6" fill="#10B981" fill-opacity="0.7"/>
+  </g>
+
+  <rect x="390" y="490" width="500" height="300" rx="22" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="430" y="535" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#172033">Original source</text>
+  <rect x="430" y="565" width="420" height="170" rx="16" fill="#102820"/>
+  <rect x="456" y="588" width="204" height="12" rx="6" fill="#A7F3D0" fill-opacity="0.8"/>
+  <rect x="456" y="614" width="255" height="12" rx="6" fill="#E2E8F0" fill-opacity="0.8"/>
+  <rect x="456" y="640" width="226" height="12" rx="6" fill="#E2E8F0" fill-opacity="0.75"/>
+  <rect x="456" y="666" width="190" height="12" rx="6" fill="#E2E8F0" fill-opacity="0.65"/>
+
+  <rect x="930" y="490" width="500" height="300" rx="22" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="970" y="535" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#172033">Review source</text>
+  <rect x="970" y="565" width="420" height="170" rx="16" fill="#EEF2FF"/>
+  <rect x="998" y="592" width="212" height="12" rx="6" fill="#4F46E5" fill-opacity="0.7"/>
+  <rect x="998" y="618" width="250" height="12" rx="6" fill="#94A3B8"/>
+  <rect x="998" y="644" width="220" height="12" rx="6" fill="#94A3B8"/>
+  <rect x="998" y="670" width="170" height="12" rx="6" fill="#94A3B8"/>
+</svg>
